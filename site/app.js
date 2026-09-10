@@ -216,7 +216,7 @@ function applyTheme(s) {
   root.setAttribute("data-holo-immersive", s.immersive ? "on" : "off");
   root.style.setProperty("color-scheme", s.palette === "light" ? "light" : "dark");
   if (s.wallpaper) root.style.setProperty("--holo-wallpaper", `url(${JSON.stringify(s.wallpaper)})`);
-  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+  try { localStorage.setItem(KEY, JSON.stringify({ look: 2, ...s })); } catch (e) {}
   const mode = s.immersive ? "immersive" : s.palette === "light" ? "light" : "dark";
   for (const b of document.querySelectorAll(".mode")) b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
   for (const b of document.querySelectorAll(".wall")) b.setAttribute("aria-pressed", String(s.immersive && b.dataset.wall === s.wallpaper));

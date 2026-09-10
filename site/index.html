@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#f3f3ee">
+<meta name="theme-color" content="#d8e1fc">
 <title>Free verified AI inference.</title>
 <meta name="description" content="Ask anything. Every answer is sealed on your device and can be checked again.">
 <link rel="icon" href="mark.svg" type="image/svg+xml">
@@ -13,11 +13,12 @@
 <script>
 // Pre paint appearance, the same canonical state Hologram OS keeps (holo.theme.v1: palette, immersive,
 // wallpaper) and the same hooks (data-holo-palette, data-holo-immersive, --holo-wallpaper, color-scheme),
-// so the first frame already wears the chosen look. First run: immersive on the curated default.
+// so the first frame already wears the chosen look. First run, and once for anyone who chose before
+// look 2 (the sky gradient): light, no photo.
 (function () {
   var root = document.documentElement, s = null;
   try { s = JSON.parse(localStorage.getItem("holo.theme.v1") || "null"); } catch (e) {}
-  if (!s || !("immersive" in s)) { s = { palette: "dark", immersive: true, wallpaper: "wallpapers/alps.jpg" }; try { localStorage.setItem("holo.theme.v1", JSON.stringify(s)); } catch (e) {} }
+  if (!s || s.look !== 2) { s = { look: 2, palette: "light", immersive: false, wallpaper: "wallpapers/alps.jpg" }; try { localStorage.setItem("holo.theme.v1", JSON.stringify(s)); } catch (e) {} }
   root.setAttribute("data-holo-palette", s.palette === "light" ? "light" : "dark");
   root.setAttribute("data-holo-immersive", s.immersive ? "on" : "off");
   root.style.setProperty("color-scheme", s.palette === "light" ? "light" : "dark");

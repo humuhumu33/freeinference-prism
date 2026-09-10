@@ -29,7 +29,7 @@ fn page() -> String {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#f3f3ee">
+<meta name="theme-color" content="#d8e1fc">
 <title>{title}</title>
 <meta name="description" content="{lede}">
 <link rel="icon" href="mark.svg" type="image/svg+xml">
@@ -38,11 +38,12 @@ fn page() -> String {
 <script>
 // Pre paint appearance, the same canonical state Hologram OS keeps (holo.theme.v1: palette, immersive,
 // wallpaper) and the same hooks (data-holo-palette, data-holo-immersive, --holo-wallpaper, color-scheme),
-// so the first frame already wears the chosen look. First run: immersive on the curated default.
+// so the first frame already wears the chosen look. First run, and once for anyone who chose before
+// look 2 (the sky gradient): light, no photo.
 (function () {{
   var root = document.documentElement, s = null;
   try {{ s = JSON.parse(localStorage.getItem("holo.theme.v1") || "null"); }} catch (e) {{}}
-  if (!s || !("immersive" in s)) {{ s = {{ palette: "dark", immersive: true, wallpaper: "wallpapers/{wall0}" }}; try {{ localStorage.setItem("holo.theme.v1", JSON.stringify(s)); }} catch (e) {{}} }}
+  if (!s || s.look !== 2) {{ s = {{ look: 2, palette: "light", immersive: false, wallpaper: "wallpapers/{wall0}" }}; try {{ localStorage.setItem("holo.theme.v1", JSON.stringify(s)); }} catch (e) {{}} }}
   root.setAttribute("data-holo-palette", s.palette === "light" ? "light" : "dark");
   root.setAttribute("data-holo-immersive", s.immersive ? "on" : "off");
   root.style.setProperty("color-scheme", s.palette === "light" ? "light" : "dark");
@@ -96,8 +97,8 @@ fn webmanifest() -> String {
         "description": v.lede,
         "start_url": "./",
         "display": "standalone",
-        "background_color": "#f3f3ee",
-        "theme_color": "#f3f3ee",
+        "background_color": "#d8e1fc",
+        "theme_color": "#d8e1fc",
         "icons": [{ "src": "mark.svg", "sizes": "any", "type": "image/svg+xml" }]
     })
     .to_string()

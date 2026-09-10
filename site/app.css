@@ -1,18 +1,21 @@
 /* Tokens from Hologram-Technologies/hologram-brand-kit, brand/css/hologram-warm.css, light and dark
    layers, and the kit's web fonts. Appearance as Hologram OS keeps it: two axes on <html>,
    data-holo-palette (light | dark) and data-holo-immersive (on | off) with --holo-wallpaper, the
-   curated Unsplash photo behind frosted glass. Type steps of φ (16, 26, 42); spacing on 8, 13, 21, 34, 55. */
+   curated Unsplash photo behind frosted glass. The light look is the hero as lovable.dev draws it: a sky
+   gradient, one large dark headline, one grey line, one floating white box with its controls along the
+   bottom edge. Type steps of φ (16, 26, 42, 64); spacing on 8, 13, 21, 34, 55. */
 @font-face { font-family: "Archivo"; src: url("fonts/Archivo-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 @font-face { font-family: "Geist"; src: url("fonts/Geist-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Geist"; src: url("fonts/Geist-Medium.woff2") format("woff2"); font-weight: 500; font-display: swap; }
 @font-face { font-family: "Geist Mono"; src: url("fonts/GeistMono-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 
 :root {
-  --background: #f3f3ee; --foreground: #302b28; --card: #ffffff; --muted-foreground: #6b6660;
-  --border: #deddd4; --ring: #a8a399; --brand: #e93b01; --radius: 21px;
+  --background: #c9d6fa; --foreground: #171717; --card: #ffffff; --muted-foreground: #4b5160;
+  --border: #e4e7ef; --ring: #a8b0c6; --brand: #e93b01; --radius: 24px;
+  --sky-a: #d8e1fc; --sky-b: #c8d5fb; --sky-c: #a9b6f4; --sky-d: #97a2ee;
   --glow-a: rgba(233, 59, 1, 0.42); --glow-b: rgba(255, 140, 90, 0.30); --glow-c: rgba(233, 59, 1, 0.22);
-  --user: rgba(48, 43, 40, 0.06); --shadow: rgba(48, 43, 40, 0.10); --button: #302b28; --button-hover: #000;
-  --glass: rgba(255, 255, 255, 0.72); --glass-border: rgba(255, 255, 255, 0.6);
+  --user: rgba(23, 23, 23, 0.06); --shadow: rgba(35, 45, 90, 0.12); --button: #171717; --button-hover: #000;
+  --glass: rgba(255, 255, 255, 0.6); --glass-border: rgba(255, 255, 255, 0.75);
   --display: "Archivo", "Geist", system-ui, sans-serif;
   --text: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -37,10 +40,16 @@ body {
   font-family: var(--text); font-size: 16px; line-height: 1.618;
   -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
 }
-/* The backdrop. Light and dark: soft radial fields in the brand's warm range. Immersive: the photo,
-   with a quiet scrim so type stays legible. */
+/* The backdrop. Light: the sky, pale blue falling to lavender with a white haze behind the headline.
+   Dark: soft radial fields in the brand's warm range. Immersive: the photo, with a quiet scrim so type
+   stays legible. */
 body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(75% 55% at 50% 38%, rgba(255, 255, 255, 0.55), transparent 70%),
+    linear-gradient(165deg, var(--sky-a) 0%, var(--sky-b) 38%, var(--sky-c) 72%, var(--sky-d) 100%);
+}
+:root[data-holo-palette="dark"] body::before {
   background:
     radial-gradient(60% 55% at 50% 118%, var(--glow-a), transparent 70%),
     radial-gradient(45% 40% at 12% 88%, var(--glow-b), transparent 70%),
@@ -85,15 +94,15 @@ body::before {
 .wall[aria-pressed="true"] { border-color: var(--brand); }
 
 main {
-  min-height: 100%; max-width: 610px; margin: 0 auto; padding: 21px; min-width: 0;
+  min-height: 100%; max-width: 652px; margin: 0 auto; padding: 21px; min-width: 0;
   display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 13px;
 }
 h1 {
-  font-family: var(--display); font-weight: 700; letter-spacing: -0.035em; line-height: 1;
-  font-size: clamp(34px, 6.8vw, 42px); text-align: center; margin: 0;
+  font-family: var(--display); font-weight: 700; letter-spacing: -0.045em; line-height: 1.02;
+  font-size: clamp(40px, 9vw, 64px); text-align: center; margin: 0; text-wrap: balance;
 }
 :root[data-holo-immersive="on"] h1 { text-shadow: 0 2px 21px rgba(0, 0, 0, 0.35); }
-.lede { color: var(--muted-foreground); text-align: center; margin: 0 0 21px; font-size: 16px; }
+.lede { color: var(--muted-foreground); text-align: center; margin: 5px 0 34px; font-size: 18px; text-wrap: balance; }
 
 .messages { display: grid; gap: 8px; min-width: 0; }
 .messages:empty { display: none; }
@@ -114,27 +123,30 @@ h1 {
 button.badge { cursor: pointer; }
 button.badge:hover { color: var(--foreground); border-color: var(--brand); }
 
+/* The box: white, floating, the words at the top and the controls along the bottom edge. */
 .composer {
-  display: grid; gap: 8px; background: var(--card); border-radius: var(--radius); padding: 13px 13px 10px;
-  box-shadow: 0 13px 34px var(--shadow), 0 1px 2px var(--shadow);
+  display: grid; gap: 13px; background: var(--card); border-radius: var(--radius); padding: 21px 21px 16px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 13px 34px var(--shadow), 0 2px 5px var(--shadow);
 }
-:root[data-holo-immersive="on"] .composer { border: 1px solid var(--border); -webkit-backdrop-filter: blur(34px) saturate(1.4); backdrop-filter: blur(34px) saturate(1.4); }
+:root[data-holo-immersive="on"] .composer { border-color: var(--border); -webkit-backdrop-filter: blur(34px) saturate(1.4); backdrop-filter: blur(34px) saturate(1.4); }
 .composer textarea {
-  width: 100%; resize: none; min-height: 34px; max-height: 220px; background: transparent; color: var(--foreground);
-  border: 0; outline: none; font: inherit; font-size: 16px; line-height: 1.618; padding: 3px 5px;
+  width: 100%; resize: none; min-height: 42px; max-height: 220px; background: transparent; color: var(--foreground);
+  border: 0; outline: none; font: inherit; font-size: 17px; line-height: 1.5; padding: 3px 3px 0;
 }
-.composer textarea::placeholder { color: var(--muted-foreground); }
-.composer .row { display: flex; align-items: center; justify-content: space-between; gap: 13px; min-width: 0; }
-.hint { color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; padding-left: 5px; }
+.composer textarea::placeholder { color: var(--muted-foreground); opacity: 0.8; }
+.composer .row { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.hint { color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
 .btn {
-  border: 0; border-radius: 999px; padding: 8px 21px; background: var(--button); color: #fff;
-  font: inherit; font-weight: 500; cursor: pointer; flex: none;
+  border: 0; border-radius: 999px; height: 36px; padding: 0 21px; background: var(--button); color: #fff;
+  font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; flex: none;
 }
 .btn:hover { background: var(--button-hover); }
 .btn:disabled { opacity: 0.45; cursor: default; }
 
 @media (max-width: 520px) {
   main { padding: 55px 16px 55px; }
+  .composer { padding: 16px 16px 13px; }
   .mark { top: 13px; left: 13px; }
   .mark img { height: 26px; }
   .appearance { top: 13px; right: 13px; }
