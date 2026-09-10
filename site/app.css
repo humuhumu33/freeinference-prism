@@ -103,7 +103,10 @@ h1 {
   font-size: clamp(40px, 9vw, 64px); text-align: center; margin: 0; text-wrap: balance;
 }
 :root[data-holo-immersive="on"] h1 { text-shadow: 0 2px 21px rgba(0, 0, 0, 0.35); }
-.lede { color: var(--muted-foreground); text-align: center; margin: 5px 0 34px; font-size: 18px; text-wrap: balance; }
+/* One row on a desk: the lede may use the whole 652 column (the negative margins undo main's padding);
+   it wraps only where the column itself is narrower than the sentence. */
+.lede { color: var(--muted-foreground); text-align: center; margin: 5px -21px 34px; font-size: 18px; white-space: nowrap; }
+@media (max-width: 700px) { .lede { margin-left: 0; margin-right: 0; white-space: normal; text-wrap: balance; } }
 
 .messages { display: grid; gap: 8px; min-width: 0; }
 .messages:empty { display: none; }

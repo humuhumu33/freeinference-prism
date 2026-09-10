@@ -226,7 +226,7 @@ decls = [
             b(False))),
     definition("view", [], named("View"), record("View",
         headline=s("Own Your Ideas"),
-        lede=s("Seamlessly create, share and monetize your AI apps without giving up ownership."),
+        lede=s("Seamlessly build, run, share and earn from your serverless AI applications."),
         promptPlaceholder=s("Ask anything"),
         sendLabel=s("Ask"),
         loadingLabel=s("getting the model, once"),
