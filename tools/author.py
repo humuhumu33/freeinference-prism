@@ -17,6 +17,7 @@ an allocation and which is the identity.
 import json, pathlib
 
 NL = "\n"
+BS = "\\"
 
 # Exact axiom sets Lean observes per declaration, pinned by tools/pin_axioms.py.
 # LexLean treats the `axioms` field as an exact policy; anything else is refused.
@@ -57,12 +58,73 @@ def join(list_expr, sep=""): return prim("join", STRING, list_expr, s(sep))
 def equal(a, c): return prim("equal", BOOL, a, c)
 def utf8(x): return prim("utf8_encode", BYTES, x)
 def eq(l, r): return {"kind": "eq", "left": l, "right": r}
+# Arithmetic and comparison as LexLean spells them: `add` is a term kind; multiply and quotient are
+# primitives (quotient carries the zero divisor case); ble is the boolean order.
+def add(l, r): return {"kind": "add", "left": l, "right": r}
+NAT = {"kind": "nat"}
+def nat(v): return {"kind": "nat", "value": str(v)}
+def mul(l, r): return prim("multiply", NAT, l, r)
+def quot(l, r): return prim("quotient", NAT, l, r, nat(0))
+def ble(l, r): return {"kind": "ble", "left": l, "right": r}
+def band(l, r): return {"kind": "and", "left": l, "right": r}
 # An owned copy of a string expression: split on newline, join with newline. Identity on every
 # string; rendered by the generator as split(...).map(String::from).collect() then join.
 def owned(expr):
     return match(prim("split_exact", opt(lst(STRING)), expr, s(NL), u32(2147483647)),
                  branch("Option.none", [], s("")),
                  branch("Option.some", ["fields"], join(var("fields"), NL)))
+
+# The wire: every byte of an OpenAI compatible response is built here. JSON escaping is split and
+# join, each step owned, in the order backslash first; created and temperature arrive spelled.
+def esc_step(name, needle, replacement, inner):
+    return definition(name, [("value", STRING)], STRING,
+        match(prim("split_exact", opt(lst(STRING)), inner, s(needle), u32(2147483647)),
+              branch("Option.none", [], s("")),
+              branch("Option.some", ["parts"], join(var("parts"), replacement))))
+def field_of(type_name, field):
+    return definition(field + "Of", [("value", named(type_name))], STRING, owned(project(field, var("value"))))
+def q(expr): return join(strings(s('"'), call("escapeJson", expr), s('"')))
+def completion_head(c):
+    return [s('{"id":'), q(call("idOf", c)), s(',"object":"chat.completion","created":'), call("createdOf", c), s(',"model":'), q(call("modelOf", c)), s(',"system_fingerprint":'), q(call("fingerprintOf", c))]
+def chunk_head(c):
+    return [s('{"id":'), q(call("idOf", c)), s(',"object":"chat.completion.chunk","created":'), call("createdOf", c), s(',"model":'), q(call("modelOf", c)), s(',"system_fingerprint":'), q(call("fingerprintOf", c))]
+def completion_record():
+    return record("Completion", id=s("i"), created=s("1"), model=s("m"), text=s("t"), fingerprint=s("f"), receipt=s("r"))
+
+# The route: who answers a request. Written once here so the definition and its theorems share the term.
+def route_body(hit, provider, gpu, key, online):
+    return if_(hit, ctor("Route.Serve"),
+        match(provider,
+            branch("Provider.Local", [], if_(gpu, ctor("Route.Local"), ctor("Route.NoGpu"))),
+            branch("Provider.Paid", [], if_(key, if_(online, ctor("Route.Paid"), ctor("Route.PaidOffline")), ctor("Route.NoKey")))))
+# The bytes OpenRouter receives: only these fields, in this order, nothing else, no key. Usage is asked
+# for so the cost is known; reasoning is off because the product asks for answers, not thinking; only
+# providers that honor every field may answer (measured: one provider ignored the reasoning field and
+# returned an empty answer).
+def openrouter_body(model, req, stream):
+    return join(strings(s('{"model":'), q(var(model) if isinstance(model, str) else model), s(',"messages":['), call("orMessages", project("messages", req)), s("]"),
+                        call("maxTokensField", req), call("seedField", req), call("temperatureField", req),
+                        s(',"stream":'), call("streamText", stream), s(',"usage":{"include":true},"reasoning":{"enabled":false},"provider":{"require_parameters":true}}')))
+
+# The κ object's addressing rule, written once so definitions and theorems share the term.
+def expert_range(start, length, experts, expert):
+    return record("Range", start=add(start, mul(expert, call("stride", length, experts))),
+                  stop=add(start, mul(add(expert, nat(1)), call("stride", length, experts))))
+def obj_entry(o):
+    return join(strings(s('["'), call("escapeJson", call("objKind", o)), s('","'), call("escapeJson", call("objLabel", o)),
+                        s('","'), call("escapeJson", call("objKappa", o)), s('",'), prim("format_decimal", STRING, project("bytes", o)), s("]")))
+def shard_entry(sh):
+    return join(strings(s('{"bytes":'), prim("format_decimal", STRING, project("bytes", sh)), s(',"kappa":'), q(call("shardKappa", sh)),
+                        s(',"name":'), q(call("shardLabel", sh)), s(',"objects":'), q(call("shardObjects", sh)),
+                        s(',"sha256":'), call("sha256Text", sh), s("}")))
+def manifest_preimage(m):
+    return join(strings(s('{"experts":'), prim("format_decimal", STRING, project("experts", m)), s(',"repo":'), q(call("manifestRepo", m)),
+                        s(',"revision":'), q(call("manifestRevision", m)), s(',"shards":['), call("shardEntries", project("shards", m)), s("]"),
+                        s(',"spec":'), q(call("manifestSpec", m)), s(',"table_rows":'), prim("format_decimal", STRING, project("tableRows", m)), s("}")))
+def small_manifest():
+    return record("Manifest", spec=s("hologram/kappa-object/2"), repo=s("r"), revision=s("v"), experts=u64(2), tableRows=u64(64),
+                  shards=cons(record("Shard", label=s("a"), bytes=u64(10), sha256=s(""), kappa=s("blake3:aa"), objects=s("blake3:bb")),
+                              nil(named("Shard"))))
 
 # ---- declarations
 def inductive(name, *ctors): return {"constructors": [{"fields": [], "name": c} for c in ctors], "kind": "inductive", "name": name, "parameters": [], "type_parameters": []}
@@ -101,6 +163,11 @@ decls = [
     # The bytes the hash adapter addresses; the model owns preimages, not digests.
     structure("Preimages", prompt=BYTES, params=BYTES),
     inductive("Decision", "Serve", "Execute", "Refuse"),
+    # Who runs a request: the visitor's own GPU, or OpenRouter with the visitor's own key.
+    inductive("Provider", "Local", "Paid"),
+    inductive("Route", "Serve", "Local", "Paid", "NoKey", "NoGpu", "PaidOffline"),
+    # A paid model the page offers: its OpenRouter id and its plain name.
+    structure("PaidModel", id=STRING, label=STRING),
     # Every visible word of the page. The page is projected from this record by core/src/bin/project-site.rs;
     # no copy is written in HTML. Zero hyphens in any string, as the product's site rule requires.
     # A curated backdrop: an Unsplash photo vendored with the page, credited as the Unsplash License asks.
@@ -109,7 +176,10 @@ decls = [
               loadingLabel=STRING, servedLabel=STRING, sealedLabel=STRING, rederiveLabel=STRING,
               identicalLabel=STRING, noGpuLabel=STRING, offlineLabel=STRING,
               modelLabel=STRING, appearanceLabel=STRING, darkLabel=STRING, lightLabel=STRING, immersiveLabel=STRING,
-              wallpapers=lst(named("Wallpaper"))),
+              wallpapers=lst(named("Wallpaper")),
+              localLabel=STRING, paidLabel=STRING, keyLabel=STRING, keyPlaceholder=STRING, keySavedLabel=STRING,
+              paidOnceLabel=STRING, costLabel=STRING, freeLabel=STRING, noKeyLabel=STRING, noCreditLabel=STRING,
+              providerBusyLabel=STRING, paidOfflineLabel=STRING, paidModels=lst(named("PaidModel"))),
 
     # Owned copies of projected strings live in their own record taking definitions: the generator
     # borrows a record parameter and returns an owned string, and a match nested inside a list literal
@@ -174,7 +244,126 @@ decls = [
         wallpapers=cons(record("Wallpaper", file=s("alps.jpg"), label=s("Alpine Dawn"), author=s("Unsplash"), authorUrl=s("https://unsplash.com/?utm_source=Hologram_AI&utm_medium=referral")),
                    cons(record("Wallpaper", file=s("galaxy.jpg"), label=s("Galaxy"), author=s("Tiago Ferreira"), authorUrl=s("https://unsplash.com/@tiago_f_ferreira?utm_source=Hologram_AI&utm_medium=referral")),
                    cons(record("Wallpaper", file=s("aurora.jpg"), label=s("Aurora"), author=s("Lightscape"), authorUrl=s("https://unsplash.com/@lightscape?utm_source=Hologram_AI&utm_medium=referral")),
-                   nil(named("Wallpaper"))))))),
+                   nil(named("Wallpaper"))))),
+        localLabel=s("On your device"), paidLabel=s("Paid"), keyLabel=s("OpenRouter key"), keyPlaceholder=s("Paste your OpenRouter key"),
+        keySavedLabel=s("Key kept on this device"), paidOnceLabel=s("Paid once, then free from the seal"), costLabel=s("Paid"), freeLabel=s("Free"),
+        noKeyLabel=s("Add your OpenRouter key to use paid models"), noCreditLabel=s("Your OpenRouter account has no credit"),
+        providerBusyLabel=s("That model is busy right now. Try again or pick another"), paidOfflineLabel=s("Paid models need the network"),
+        paidModels=cons(record("PaidModel", id=s("qwen/qwen3.8-flash"), label=s("Qwen 3.8 Flash")),
+                   cons(record("PaidModel", id=s("deepseek/deepseek-v4.1-flash"), label=s("DeepSeek V4.1 Flash")),
+                   cons(record("PaidModel", id=s("nvidia/nemotron-3.5-lightning:free"), label=s("Nemotron 3.5, free")),
+                   nil(named("PaidModel"))))))),
+    # One answer as the wire sees it: created is a decimal string the adapter spells.
+    structure("Completion", id=STRING, created=STRING, model=STRING, text=STRING, fingerprint=STRING, receipt=STRING),
+    field_of("Completion", "id"), field_of("Completion", "created"), field_of("Completion", "model"),
+    field_of("Completion", "text"), field_of("Completion", "fingerprint"), field_of("Completion", "receipt"),
+    esc_step("escapeBackslash", BS, BS + BS, var("value")),
+    esc_step("escapeQuote", '"', BS + '"', call("escapeBackslash", var("value"))),
+    esc_step("escapeNewline", NL, BS + "n", call("escapeQuote", var("value"))),
+    esc_step("escapeReturn", "\r", BS + "r", call("escapeNewline", var("value"))),
+    esc_step("escapeJson", "\t", BS + "t", call("escapeReturn", var("value"))),
+    definition("encodeCompletion", [("completion", named("Completion"))], STRING,
+        join(strings(*completion_head(var("completion")),
+                     s(',"choices":[{"index":0,"message":{"role":"assistant","content":'), q(call("textOf", var("completion"))),
+                     s(',"refusal":null},"logprobs":null,"finish_reason":"stop"}],"usage":null}')))),
+    definition("encodeRole", [("completion", named("Completion"))], STRING,
+        join(strings(*chunk_head(var("completion")), s(',"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}')))),
+    definition("encodeDelta", [("completion", named("Completion")), ("delta", STRING)], STRING,
+        join(strings(*chunk_head(var("completion")), s(',"choices":[{"index":0,"delta":{"content":'), q(var("delta")), s('},"finish_reason":null}]}')))),
+    definition("encodeFinal", [("completion", named("Completion"))], STRING,
+        join(strings(*chunk_head(var("completion")), s(',"choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"hologram":{"receipt":'), q(call("receiptOf", var("completion"))), s("}}")))),
+    definition("done", [], STRING, s("[DONE]")),
+    definition("encodeError", [("message", STRING), ("kind", STRING)], STRING,
+        join(strings(s('{"error":{"message":'), q(var("message")), s(',"type":'), q(var("kind")), s(',"param":null,"code":null}}')))),
+    definition("modelEntry", [("id", STRING)], STRING,
+        join(strings(s('{"id":'), q(var("id")), s(',"object":"model","created":0,"owned_by":"browser"}')))),
+    definition("modelEntries", [("ids", lst(STRING))], STRING,
+        match(var("ids"),
+            branch("List.nil", [], s("")),
+            branch("List.cons", ["id", "rest"],
+                match(var("rest"),
+                    branch("List.nil", [], call("modelEntry", owned(var("id")))),
+                    branch("List.cons", ["next", "more"], join(strings(call("modelEntry", owned(var("id"))), call("modelEntries", var("rest"))), ","))))),
+        recursive="ids"),
+    definition("encodeModels", [("ids", lst(STRING))], STRING,
+        join(strings(s('{"object":"list","data":['), call("modelEntries", var("ids")), s("]}")))),
+    definition("route", [("hit", BOOL), ("provider", named("Provider")), ("gpuReady", BOOL), ("keyPresent", BOOL), ("online", BOOL)], named("Route"),
+        route_body(var("hit"), var("provider"), var("gpuReady"), var("keyPresent"), var("online"))),
+    definition("orMessage", [("message", named("Message"))], STRING,
+        join(strings(s('{"role":'), q(call("roleOf", var("message"))), s(',"content":'), q(call("contentOf", var("message"))), s("}")))),
+    definition("orMessages", [("messages", lst(named("Message")))], STRING,
+        match(var("messages"),
+            branch("List.nil", [], s("")),
+            branch("List.cons", ["message", "rest"],
+                match(var("rest"),
+                    branch("List.nil", [], call("orMessage", var("message"))),
+                    branch("List.cons", ["next", "more"], join(strings(call("orMessage", var("message")), call("orMessages", var("rest"))), ","))))),
+        recursive="messages"),
+    definition("maxTokensField", [("request", named("Request"))], STRING,
+        match(project("maxTokens", var("request")),
+            branch("Option.none", [], s("")),
+            branch("Option.some", ["number"], join(strings(s(',"max_tokens":'), prim("format_decimal", STRING, var("number"))))))),
+    definition("seedField", [("request", named("Request"))], STRING,
+        match(project("seed", var("request")),
+            branch("Option.none", [], s("")),
+            branch("Option.some", ["number"], join(strings(s(',"seed":'), prim("format_decimal", STRING, var("number"))))))),
+    definition("temperatureField", [("request", named("Request"))], STRING,
+        if_(equal(project("temperature", var("request")), s("")), s(""), join(strings(s(',"temperature":'), owned(project("temperature", var("request"))))))),
+    definition("streamText", [("stream", BOOL)], STRING, if_(var("stream"), s("true"), s("false"))),
+    definition("encodeOpenRouterRequest", [("model", STRING), ("request", named("Request")), ("stream", BOOL)], STRING,
+        openrouter_body(var("model"), var("request"), var("stream"))),
+    # ---- Address: the κ object. Every tensor a κ, every expert a page, every table page a κ, one root.
+    structure("Range", start=NAT, stop=NAT),
+    structure("Obj", kind=STRING, label=STRING, kappa=STRING, bytes=U64),
+    structure("Shard", label=STRING, bytes=U64, sha256=STRING, kappa=STRING, objects=STRING),
+    structure("Manifest", spec=STRING, repo=STRING, revision=STRING, experts=U64, tableRows=U64, shards=lst(named("Shard"))),
+    # The rows of one expert inside a stacked expert tensor: stride is the tensor's bytes over the expert count.
+    definition("stride", [("length", NAT), ("experts", NAT)], NAT, quot(var("length"), var("experts"))),
+    definition("expertPage", [("start", NAT), ("length", NAT), ("experts", NAT), ("expert", NAT)], named("Range"),
+        expert_range(var("start"), var("length"), var("experts"), var("expert"))),
+    # One fixed page of the n gram table: whole rows, the last page shorter.
+    definition("pageBytes", [("rowBytes", NAT), ("rows", NAT)], NAT, mul(var("rowBytes"), var("rows"))),
+    definition("pageStart", [("start", NAT), ("rowBytes", NAT), ("rows", NAT), ("index", NAT)], NAT,
+        add(var("start"), mul(var("index"), call("pageBytes", var("rowBytes"), var("rows"))))),
+    definition("tablePage", [("start", NAT), ("stop", NAT), ("rowBytes", NAT), ("rows", NAT), ("index", NAT)], named("Range"),
+        record("Range", start=call("pageStart", var("start"), var("rowBytes"), var("rows"), var("index")),
+               stop=if_(ble(add(call("pageStart", var("start"), var("rowBytes"), var("rows"), var("index")), call("pageBytes", var("rowBytes"), var("rows"))), var("stop")),
+                       add(call("pageStart", var("start"), var("rowBytes"), var("rows"), var("index")), call("pageBytes", var("rowBytes"), var("rows"))),
+                       var("stop")))),
+    # The root preimage: canonical JSON of the manifest, keys sorted, no spaces, an absent sha256 spelled null.
+    # Owned copies of the records' strings, each in its own record taking definition (a copy inside a
+    # list literal lowers to a closure the exporter refuses).
+    definition("objKind", [("obj", named("Obj"))], STRING, owned(project("kind", var("obj")))),
+    definition("objLabel", [("obj", named("Obj"))], STRING, owned(project("label", var("obj")))),
+    definition("objKappa", [("obj", named("Obj"))], STRING, owned(project("kappa", var("obj")))),
+    definition("shardLabel", [("shard", named("Shard"))], STRING, owned(project("label", var("shard")))),
+    definition("shardKappa", [("shard", named("Shard"))], STRING, owned(project("kappa", var("shard")))),
+    definition("shardObjects", [("shard", named("Shard"))], STRING, owned(project("objects", var("shard")))),
+    definition("shardSha256", [("shard", named("Shard"))], STRING, owned(project("sha256", var("shard")))),
+    definition("manifestRepo", [("manifest", named("Manifest"))], STRING, owned(project("repo", var("manifest")))),
+    definition("manifestRevision", [("manifest", named("Manifest"))], STRING, owned(project("revision", var("manifest")))),
+    definition("manifestSpec", [("manifest", named("Manifest"))], STRING, owned(project("spec", var("manifest")))),
+    definition("sha256Text", [("shard", named("Shard"))], STRING,
+        if_(equal(project("sha256", var("shard")), s("")), s("null"), q(call("shardSha256", var("shard"))))),
+    definition("objEntry", [("obj", named("Obj"))], STRING, obj_entry(var("obj"))),
+    # The lists fold with an accumulator so the recursion sits in tail position: a real manifest has
+    # tens of thousands of objects, and a descent per element would exhaust any stack.
+    # One object is one line of its shard's object list; the list itself is a κ object the shard names.
+    # (A per element recursion over a real list of 156,256 objects is a descent per element in the
+    # generated code, so the list is not folded in the model: finding 8 in VERIFICATION.md.)
+    definition("shardEntry", [("shard", named("Shard"))], STRING, shard_entry(var("shard"))),
+    definition("shardEntriesFrom", [("shards", lst(named("Shard"))), ("acc", STRING)], STRING,
+        match(var("shards"),
+            branch("List.nil", [], var("acc")),
+            branch("List.cons", ["shard", "rest"],
+                call("shardEntriesFrom", var("rest"),
+                     if_(equal(var("acc"), s("")), call("shardEntry", var("shard")), join(strings(var("acc"), call("shardEntry", var("shard"))), ","))))),
+        recursive="shards"),
+    definition("shardEntries", [("shards", lst(named("Shard")))], STRING, call("shardEntriesFrom", var("shards"), s(""))),
+    definition("rootPreimage", [("manifest", named("Manifest"))], STRING, manifest_preimage(var("manifest"))),
+    # A page binds only if the root lists its κ and the bytes derive that κ.
+    definition("admitPage", [("listed", lst(STRING)), ("kappa", STRING), ("derived", STRING)], BOOL,
+        band(call("anyEqual", var("listed"), owned(var("kappa"))), equal(var("kappa"), var("derived")))),
     definition("decide", [("hit", BOOL), ("workerAttached", BOOL)], named("Decision"),
         if_(var("hit"), ctor("Decision.Serve"), if_(var("workerAttached"), ctor("Decision.Execute"), ctor("Decision.Refuse")))),
 
@@ -193,6 +382,41 @@ decls = [
     theorem("paramsCanonical_full",
         eq(call("paramsCanonical", request(nil(named("Message")), 32, 1, "0.0")), params_body(request(nil(named("Message")), 32, 1, "0.0")))),
     theorem("view_headline", eq(project("headline", call("view")), s("Own Your Ideas"))),
+    theorem("done_frame", eq(call("done"), s("[DONE]"))),
+    theorem("encodeError_shape",
+        eq(call("encodeError", s("m"), s("k")),
+           join(strings(s('{"error":{"message":'), q(s("m")), s(',"type":'), q(s("k")), s(',"param":null,"code":null}}'))))),
+    theorem("encodeCompletion_shape",
+        eq(call("encodeCompletion", completion_record()),
+           join(strings(*completion_head(completion_record()),
+                        s(',"choices":[{"index":0,"message":{"role":"assistant","content":'), q(call("textOf", completion_record())),
+                        s(',"refusal":null},"logprobs":null,"finish_reason":"stop"}],"usage":null}'))))),
+    theorem("encodeModels_empty", eq(call("encodeModels", nil(STRING)), join(strings(s('{"object":"list","data":['), call("modelEntries", nil(STRING)), s("]}"))))),
+    # The route table, every row. A hit serves on both providers; paid without a key never runs.
+    theorem("route_hitLocal", eq(call("route", b(True), ctor("Provider.Local"), b(False), b(False), b(False)), ctor("Route.Serve"))),
+    theorem("route_hitPaid", eq(call("route", b(True), ctor("Provider.Paid"), b(False), b(False), b(False)), ctor("Route.Serve"))),
+    theorem("route_local", eq(call("route", b(False), ctor("Provider.Local"), b(True), b(False), b(False)), ctor("Route.Local"))),
+    theorem("route_noGpu", eq(call("route", b(False), ctor("Provider.Local"), b(False), b(True), b(True)), ctor("Route.NoGpu"))),
+    theorem("route_paid", eq(call("route", b(False), ctor("Provider.Paid"), b(False), b(True), b(True)), ctor("Route.Paid"))),
+    theorem("route_noKey", eq(call("route", b(False), ctor("Provider.Paid"), b(True), b(False), b(True)), ctor("Route.NoKey"))),
+    theorem("route_noKeyOffline", eq(call("route", b(False), ctor("Provider.Paid"), b(True), b(False), b(False)), ctor("Route.NoKey"))),
+    theorem("route_paidOffline", eq(call("route", b(False), ctor("Provider.Paid"), b(True), b(True), b(False)), ctor("Route.PaidOffline"))),
+    theorem("orMessages_empty", eq(call("orMessages", nil(named("Message"))), s(""))),
+    theorem("streamText_true", eq(call("streamText", b(True)), s("true"))),
+    theorem("encodeOpenRouterRequest_shape",
+        eq(call("encodeOpenRouterRequest", s("m"), request(nil(named("Message")), 32, 1, "0.7"), b(True)),
+           openrouter_body(s("m"), request(nil(named("Message")), 32, 1, "0.7"), b(True)))),
+    # The addressing rule's rows.
+    theorem("expertPage_shape", eq(call("expertPage", nat(100), nat(80), nat(4), nat(1)), expert_range(nat(100), nat(80), nat(4), nat(1)))),
+    theorem("stride_shape", eq(call("stride", nat(80), nat(4)), quot(nat(80), nat(4)))),
+    theorem("pageStart_shape", eq(call("pageStart", nat(7), nat(2), nat(3), nat(5)), add(nat(7), mul(nat(5), call("pageBytes", nat(2), nat(3)))))),
+    theorem("rootPreimage_shape", eq(call("rootPreimage", small_manifest()), manifest_preimage(small_manifest()))),
+    theorem("objEntry_shape", eq(call("objEntry", record("Obj", kind=s("tensor"), label=s("t"), kappa=s("blake3:bb"), bytes=u64(4))), obj_entry(record("Obj", kind=s("tensor"), label=s("t"), kappa=s("blake3:bb"), bytes=u64(4))))),
+    # admitPage pins its shape definitionally (its string copy is split and join, which decide cannot reduce);
+    # the rows are pinned by the corpus through the crate and the guest.
+    theorem("admitPage_shape",
+        eq(call("admitPage", strings(s("blake3:a")), s("blake3:a"), s("blake3:b")),
+           band(call("anyEqual", strings(s("blake3:a")), owned(s("blake3:a"))), equal(s("blake3:a"), s("blake3:b"))))),
     theorem("decide_serve", eq(call("decide", b(True), b(False)), ctor("Decision.Serve"))),
     theorem("decide_execute", eq(call("decide", b(False), b(True)), ctor("Decision.Execute"))),
     theorem("decide_refuse", eq(call("decide", b(False), b(False)), ctor("Decision.Refuse"))),

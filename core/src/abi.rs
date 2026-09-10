@@ -12,7 +12,11 @@
 //!   {"op":"view"} -> the View record as JSON
 //! Errors: {"error":"..."}.
 
-use crate::{decide, preimages, view, Decision, Message, Request};
+use crate::{
+    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels,
+    encodeOpenRouterRequest, encodeRole, expertPage, objEntry, preimages, rootPreimage, route, tablePage, view, Completion,
+    Decision, Manifest, Message, Obj, Provider, Request, Route, Shard,
+};
 use serde_json::{json, Value};
 
 fn request(value: &Value) -> Result<Request, String> {
@@ -51,6 +55,46 @@ fn request(value: &Value) -> Result<Request, String> {
     })
 }
 
+fn completion(value: &Value) -> Completion {
+    let text = |key: &str| value[key].as_str().unwrap_or("").to_owned();
+    Completion {
+        id: text("id"),
+        created: match &value["created"] {
+            Value::Number(n) => n.to_string(),
+            other => other.as_str().unwrap_or("0").to_owned(),
+        },
+        model: text("model"),
+        text: text("text"),
+        fingerprint: text("fingerprint"),
+        receipt: text("receipt"),
+    }
+}
+
+fn u(value: &Value) -> u64 {
+    value.as_u64().unwrap_or(0)
+}
+
+fn text(value: &Value) -> String {
+    value.as_str().unwrap_or("").to_owned()
+}
+
+fn manifest(value: &Value) -> Manifest {
+    Manifest {
+        spec: text(&value["spec"]),
+        repo: text(&value["repo"]),
+        revision: text(&value["revision"]),
+        experts: u(&value["experts"]),
+        tableRows: u(&value["table_rows"]),
+        shards: value["shards"].as_array().map(|shards| shards.iter().map(|sh| Shard {
+            label: text(&sh["name"]),
+            bytes: u(&sh["bytes"]),
+            sha256: text(&sh["sha256"]),
+            kappa: text(&sh["kappa"]),
+            objects: text(&sh["objects"]),
+        }).collect()).unwrap_or_default(),
+    }
+}
+
 fn run(input: &[u8]) -> Value {
     let value: Value = match serde_json::from_slice(input) {
         Ok(value) => value,
@@ -79,6 +123,44 @@ fn run(input: &[u8]) -> Value {
             } })
         }
         "view" => view_json(),
+        // The wire: every response byte comes from the generated encoders.
+        "encode-completion" => json!({ "bytes": encodeCompletion(&completion(&value["completion"])) }),
+        "encode-role" => json!({ "bytes": encodeRole(&completion(&value["completion"])) }),
+        "encode-delta" => json!({ "bytes": encodeDelta(&completion(&value["completion"]), value["delta"].as_str().unwrap_or("").to_owned()) }),
+        "encode-final" => json!({ "bytes": encodeFinal(&completion(&value["completion"])) }),
+        "encode-error" => json!({ "bytes": encodeError(value["message"].as_str().unwrap_or("").to_owned(), value["type"].as_str().unwrap_or("server_error").to_owned()) }),
+        "encode-models" => json!({ "bytes": encodeModels(&value["ids"].as_array().map(|ids| ids.iter().filter_map(|i| i.as_str().map(str::to_owned)).collect::<Vec<_>>()).unwrap_or_default()) }),
+        "done" => json!({ "bytes": done() }),
+        // The κ object: page ranges, the root preimage and the admission rule come from the model.
+        // The page arithmetic is checked: an overflow is a refusal, never a wrapped address.
+        "expert-page" => match expertPage(u(&value["start"]), u(&value["length"]), u(&value["experts"]), u(&value["expert"])) {
+            Ok(r) => json!({ "start": r.start, "end": r.stop }),
+            Err(e) => json!({ "error": format!("{e:?}") }),
+        },
+        "table-page" => match tablePage(u(&value["start"]), u(&value["end"]), u(&value["rowBytes"]), u(&value["rows"]), u(&value["index"])) {
+            Ok(r) => json!({ "start": r.start, "end": r.stop }),
+            Err(e) => json!({ "error": format!("{e:?}") }),
+        },
+        "root-preimage" => json!({ "bytes": rootPreimage(&manifest(&value["manifest"])) }),
+        "object-line" => json!({ "bytes": objEntry(&Obj { kind: text(&value["kind"]), label: text(&value["name"]), kappa: text(&value["kappa"]), bytes: u(&value["bytes"]) }) }),
+        "admit" => json!({ "admit": admitPage(&value["listed"].as_array().map(|l| l.iter().filter_map(|k| k.as_str().map(str::to_owned)).collect::<Vec<_>>()).unwrap_or_default(), value["kappa"].as_str().unwrap_or(""), value["derived"].as_str().unwrap_or("")) }),
+        // Who answers: the route table in the model, every row a theorem.
+        "route" => {
+            let provider = if value["provider"].as_str() == Some("paid") { Provider::Paid } else { Provider::Local };
+            let r = route(
+                value["hit"].as_bool().unwrap_or(false),
+                provider,
+                value["gpuReady"].as_bool().unwrap_or(false),
+                value["keyPresent"].as_bool().unwrap_or(false),
+                value["online"].as_bool().unwrap_or(false),
+            );
+            json!({ "route": match r { Route::Serve => "Serve", Route::Local => "Local", Route::Paid => "Paid", Route::NoKey => "NoKey", Route::NoGpu => "NoGpu", Route::PaidOffline => "PaidOffline" } })
+        }
+        // The bytes OpenRouter receives: only what the model spells, never a key.
+        "encode-openrouter-request" => match request(&value["request"]) {
+            Ok(request) => json!({ "bytes": encodeOpenRouterRequest(value["model"].as_str().unwrap_or("").to_owned(), &request, value["stream"].as_bool().unwrap_or(false)) }),
+            Err(message) => json!({ "error": message }),
+        },
         other => json!({ "error": format!("unknown op {other:?}") }),
     }
 }
@@ -93,6 +175,10 @@ pub fn view_json() -> Value {
         "noGpuLabel": v.noGpuLabel, "offlineLabel": v.offlineLabel,
         "modelLabel": v.modelLabel, "appearanceLabel": v.appearanceLabel, "darkLabel": v.darkLabel, "lightLabel": v.lightLabel, "immersiveLabel": v.immersiveLabel,
         "wallpapers": v.wallpapers.iter().map(|w| json!({ "file": w.file, "name": w.label, "by": w.author, "byUrl": w.authorUrl })).collect::<Vec<_>>(),
+        "localLabel": v.localLabel, "paidLabel": v.paidLabel, "keyLabel": v.keyLabel, "keyPlaceholder": v.keyPlaceholder, "keySavedLabel": v.keySavedLabel,
+        "paidOnceLabel": v.paidOnceLabel, "costLabel": v.costLabel, "freeLabel": v.freeLabel, "noKeyLabel": v.noKeyLabel, "noCreditLabel": v.noCreditLabel,
+        "providerBusyLabel": v.providerBusyLabel, "paidOfflineLabel": v.paidOfflineLabel,
+        "paidModels": v.paidModels.iter().map(|m| json!({ "id": m.id, "label": m.label })).collect::<Vec<_>>(),
     })
 }
 

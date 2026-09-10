@@ -6,3 +6,4 @@ __pycache__/
 site/core.wasm
 site/manifest.json
 site/sw.js
+site/v1/

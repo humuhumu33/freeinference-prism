@@ -30,9 +30,39 @@ self.addEventListener("activate", (event) => {
   })());
 });
 
+// The endpoint on this origin: /v1/chat/completions and /v1/models are answered by the open page,
+// which runs the model and encodes every byte through the verified core. The worker only carries
+// the request to a window client and streams its frames back. Nothing is computed here.
+const ENDPOINT = new Set(["v1/chat/completions", "v1/models"]);
+async function serveFromPage(request, path) {
+  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const page = clients.find((c) => c.url.startsWith(self.registration.scope));
+  if (!page) return new Response(JSON.stringify({ error: { message: "open the page and leave it open", type: "server_error" } }), { status: 503, headers: { "content-type": "application/json" } });
+  const body = request.method === "POST" ? await request.text() : "";
+  const channel = new MessageChannel();
+  const headers = new Headers();
+  let resolveHead; const head = new Promise((r) => (resolveHead = r));
+  const stream = new ReadableStream({
+    start(controller) {
+      channel.port1.onmessage = ({ data }) => {
+        if (data.head) { resolveHead(data.head); return; }
+        if (data.frame != null) controller.enqueue(new TextEncoder().encode(data.frame));
+        if (data.done) controller.close();
+      };
+    },
+  });
+  page.postMessage({ endpoint: path, method: request.method, body }, [channel.port2]);
+  const h = await head;
+  for (const [k, v] of Object.entries(h.headers || {})) headers.set(k, v);
+  return new Response(stream, { status: h.status || 200, headers });
+}
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin || event.request.method !== "GET") return;
+  if (url.origin !== self.location.origin) return;
+  const path = url.pathname.slice(new URL(self.registration.scope).pathname.length);
+  if (ENDPOINT.has(path)) { event.respondWith(serveFromPage(event.request, path)); return; }
+  if (event.request.method !== "GET") return;
   event.respondWith((async () => {
     const hit = await caches.match(event.request, { ignoreSearch: true });
     if (hit) return hit;

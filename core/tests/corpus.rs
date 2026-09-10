@@ -1,7 +1,11 @@
 //! Byte identity of the generated core against the daemon's rule, on the
 //! fixed corpus `tools/corpus.py` writes to `model/corpus.json`.
 
-use freeinference_core::{decide, memoMatches, preimages, Decision, Memo, Message, Request};
+use freeinference_core::{
+    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels,
+    encodeOpenRouterRequest, encodeRole, expertPage, memoMatches, objEntry, preimages, rootPreimage, route, tablePage, Completion,
+    Decision, Manifest, Memo, Message, Obj, Provider, Request, Route, Shard,
+};
 use serde_json::Value;
 
 fn corpus() -> Vec<Value> {
@@ -79,4 +83,119 @@ fn decision_serves_first_executes_with_a_worker_and_refuses_otherwise() {
     assert_eq!(decide(true, true), Decision::Serve);
     assert_eq!(decide(false, true), Decision::Execute);
     assert_eq!(decide(false, false), Decision::Refuse);
+}
+
+/// The wire vectors `tools/corpus.py` writes to `model/wire.json`: every response byte the
+/// endpoint can emit, restated in Python, must come out of the generated encoders identically.
+#[test]
+fn wire_bytes_match_the_vectors_on_every_case() {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../model/wire.json");
+    let text = std::fs::read_to_string(path).expect("model/wire.json; run python3 tools/corpus.py");
+    let vectors: Vec<Value> = serde_json::from_str(&text).expect("wire vectors are JSON");
+    assert!(vectors.len() >= 5, "wire has {} vectors", vectors.len());
+    let s = |v: &Value| v.as_str().unwrap().to_owned();
+    let mut checked = 0;
+    for v in &vectors {
+        let name = v["name"].as_str().unwrap();
+        let c = &v["completion"];
+        let completion = Completion { id: s(&c["id"]), created: s(&c["created"]), model: s(&c["model"]), text: s(&c["text"]), fingerprint: s(&c["fingerprint"]), receipt: s(&c["receipt"]) };
+        let ids: Vec<String> = v["ids"].as_array().unwrap().iter().map(s).collect();
+        assert_eq!(encodeCompletion(&completion), s(&v["completion_bytes"]), "completion bytes differ on {name}");
+        assert_eq!(encodeRole(&completion), s(&v["role_bytes"]), "role chunk differs on {name}");
+        assert_eq!(encodeDelta(&completion, s(&v["delta"])), s(&v["delta_bytes"]), "delta chunk differs on {name}");
+        assert_eq!(encodeFinal(&completion), s(&v["final_bytes"]), "final chunk differs on {name}");
+        assert_eq!(encodeError(s(&v["error"]["message"]), s(&v["error"]["type"])), s(&v["error_bytes"]), "error envelope differs on {name}");
+        assert_eq!(encodeModels(&ids), s(&v["models_bytes"]), "models list differs on {name}");
+        assert_eq!(done(), s(&v["done_bytes"]), "done frame differs on {name}");
+        checked += 7;
+    }
+    println!("wire: {} vectors, {checked} encodings byte identical", vectors.len());
+}
+
+/// The bytes OpenRouter receives, for every corpus case, streamed and plain: the model's encoder
+/// against the Python restatement, and never a key.
+#[test]
+fn openrouter_request_bytes_match_on_every_case() {
+    let cases = corpus();
+    let mut checked = 0;
+    for case in &cases {
+        let name = case["name"].as_str().unwrap();
+        let model = case["openrouter_model"].as_str().unwrap().to_owned();
+        let got_stream = encodeOpenRouterRequest(model.clone(), &request(case), true);
+        let got_plain = encodeOpenRouterRequest(model, &request(case), false);
+        assert_eq!(got_stream, case["openrouter_stream"].as_str().unwrap(), "streamed request bytes differ on {name}");
+        assert_eq!(got_plain, case["openrouter_plain"].as_str().unwrap(), "plain request bytes differ on {name}");
+        assert!(!got_stream.contains("sk-or-"), "a key in the request bytes on {name}");
+        checked += 2;
+    }
+    println!("openrouter: {checked} request encodings byte identical");
+}
+
+/// The route table: every row, as the theorems state it.
+#[test]
+fn route_serves_hits_and_never_pays_without_a_key() {
+    assert_eq!(route(true, Provider::Local, false, false, false), Route::Serve);
+    assert_eq!(route(true, Provider::Paid, false, false, false), Route::Serve);
+    assert_eq!(route(false, Provider::Local, true, false, false), Route::Local);
+    assert_eq!(route(false, Provider::Local, false, true, true), Route::NoGpu);
+    assert_eq!(route(false, Provider::Paid, false, true, true), Route::Paid);
+    assert_eq!(route(false, Provider::Paid, true, false, true), Route::NoKey);
+    assert_eq!(route(false, Provider::Paid, true, false, false), Route::NoKey);
+    assert_eq!(route(false, Provider::Paid, true, true, false), Route::PaidOffline);
+}
+
+fn text(v: &Value) -> String {
+    v.as_str().unwrap_or("").to_owned()
+}
+
+/// The real edge0-8b κ object (1,550 tensors, 26,496 expert pages, derived off the wire): the
+/// generated root preimage equals the Python restatement byte for byte, every object line of every
+/// shard equals the generated `objEntry`, and the admission rows hold.
+#[test]
+fn kappa_object_root_preimage_and_object_lines_match_on_the_real_manifest() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../model/objects/");
+    let m: Value = serde_json::from_str(&std::fs::read_to_string(format!("{dir}edge0-8b.manifest.json")).expect("manifest")).unwrap();
+    let want = std::fs::read_to_string(format!("{dir}edge0-8b.preimage.json")).expect("preimage");
+    let manifest = Manifest {
+        spec: text(&m["spec"]), repo: text(&m["repo"]), revision: text(&m["revision"]),
+        experts: m["experts"].as_u64().unwrap(), tableRows: m["table_rows"].as_u64().unwrap(),
+        shards: m["shards"].as_array().unwrap().iter().map(|sh| Shard {
+            label: text(&sh["name"]), bytes: sh["bytes"].as_u64().unwrap(), sha256: text(&sh["sha256"]), kappa: text(&sh["kappa"]), objects: text(&sh["objects"]),
+        }).collect(),
+    };
+    let got = rootPreimage(&manifest);
+    assert!(got == want, "root preimage differs from the Python restatement ({} vs {} bytes)", got.len(), want.len());
+    let mut lines = 0; let mut listed = Vec::new();
+    for sh in &manifest.shards {
+        let body = std::fs::read_to_string(format!("{dir}edge0-8b/{}.objects.jsonl", sh.label.replace('/', "_"))).expect("object list");
+        for line in body.split('\n') {
+            let o: Value = serde_json::from_str(line).unwrap();
+            let obj = Obj { kind: text(&o[0]), label: text(&o[1]), kappa: text(&o[2]), bytes: o[3].as_u64().unwrap() };
+            assert_eq!(objEntry(&obj), line.to_owned(), "object line differs");
+            listed.push(obj.kappa); lines += 1;
+        }
+    }
+    let first = listed[0].clone();
+    assert!(admitPage(&listed, &first, &first));
+    assert!(!admitPage(&listed, &first, "blake3:0"));
+    assert!(!admitPage(&listed, "blake3:0", "blake3:0"));
+    println!("kappa object: preimage {} bytes identical, {lines} object lines identical, admit rows hold", got.len());
+}
+
+#[test]
+fn expert_and_table_pages_tile_their_tensors() {
+    // 4 experts in 80 bytes from offset 100: stride 20.
+    for e in 0..4u64 {
+        let r = expertPage(100, 80, 4, e).unwrap();
+        assert_eq!((r.start, r.stop), (100 + 20 * e, 120 + 20 * e));
+    }
+    // rows of 2 bytes, 3 rows per page, a tensor of 20 bytes from offset 7: pages 6,6,6,2.
+    let ends: Vec<(u64, u64)> = (0..4u64).map(|i| { let r = tablePage(7, 27, 2, 3, i).unwrap(); (r.start, r.stop) }).collect();
+    assert_eq!(ends, vec![(7, 13), (13, 19), (19, 25), (25, 27)]);
+}
+
+#[test]
+fn page_arithmetic_refuses_overflow_instead_of_wrapping() {
+    assert!(expertPage(u64::MAX - 1, 80, 4, 3).is_err());
+    assert!(tablePage(u64::MAX - 1, u64::MAX, 2, 3, 1).is_err());
 }

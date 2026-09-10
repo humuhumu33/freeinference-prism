@@ -26,7 +26,36 @@ LexLean models are modules that import each other, verified and content addresse
 - the shell is one versioned closure: the projector writes the closure digest into the service worker, so a new release is a new worker and a new cache, and the page keeps working offline;
 - the look is the Hologram brand kit's tokens and its Archivo, Geist and Geist Mono web fonts, on a φ scale of type and spacing, with the three appearances Hologram OS has: Immersive by default, a curated Unsplash photo behind frosted glass, its attribution kept in `site/wallpapers/curated.receipt.jsonld` and on each thumbnail; Light; Dark. Nothing else is on the page: loading shows inside the box and clears when the model is ready. The toggle top right writes the same canonical state Hologram OS keeps (`holo.theme.v1`, `data-holo-palette`, `data-holo-immersive`, `--holo-wallpaper`), applied before the first paint; the three photos are vendored under `site/wallpapers/` with their attribution record.
 
-Next on this page: the OpenAI compatible endpoint served by the same service worker on the page's origin, so any agent harness that can reach a page on that origin, or embed it, talks to the tab.
+## The endpoint: any agent harness talks to the tab
+
+The page is also an OpenAI compatible endpoint. Every response byte, the completion, each streamed chunk, the `[DONE]` frame, the error envelope and the model list, is produced by encoders in the model (`encodeCompletion`, `encodeRole`, `encodeDelta`, `encodeFinal`, `done`, `encodeError`, `encodeModels`, with JSON escaping as `split_exact` and `join` steps), generated into `core.wasm` and called through the same ABI the page uses. The adapters compute nothing: they decode the request, look the memo up, run the engine, seal, and move bytes.
+
+A browser tab cannot listen on a port, so the endpoint has two transports, and the README says what each cannot reach:
+
+1. **The page's own origin.** While the page is open, its service worker answers `POST /v1/chat/completions` and `GET /v1/models` under `https://humuhumu33.github.io/freeinference-prism/` for any page on that origin. Zero servers. It does not reach a native process, and a page on another origin is not routed through this worker.
+2. **The relay.** `relay/freeinference-relay.py`, one file on the Python standard library, listens on `http://127.0.0.1:11435/v1` and forwards each request to the open tab, which streams the answer back. It is a local process, not a server anyone else can reach; it stores nothing and computes nothing. It is what native harnesses need.
+
+A third shape, the harness driving the tab over Chrome DevTools, was not built: Hermes's and OpenClaw's model providers are HTTP clients, not browser sessions.
+
+```bash
+python relay/freeinference-relay.py      # then open the page and leave it open
+```
+
+| Client | The one line |
+| --- | --- |
+| any OpenAI client | `OPENAI_BASE_URL=http://127.0.0.1:11435/v1`, any key, model `webgpu:BitNet` |
+| Hermes 0.15 | `CUSTOM_BASE_URL=http://127.0.0.1:11435/v1 hermes chat -q "…" -m webgpu:BitNet --provider custom --ignore-rules -t none` |
+| OpenClaw | in `~/.openclaw/openclaw.json`: `models.providers.local = { baseUrl: "http://127.0.0.1:11435/v1", apiKey: "local", api: "openai-completions", models: [{ id: "webgpu:BitNet", name: "BitNet 2B, in the browser" }] }`, then `openclaw agent exec --model local/webgpu:BitNet "…"` |
+
+Every answer carries `x-hologram-receipt`; a repeated request is served from its seal on the device with `x-hologram-reuse: 1`, and the last streamed chunk carries `hologram.receipt`. `/v1/openapi.json` is written by the projector with examples taken from the encoders, so it cannot drift from the model. `model/wire.json` holds the acceptance vectors; `tools/corpus.py` checks them through the crate and, with `tools/guest.mjs`, through the wasm guest exactly as the page calls it.
+
+## The switch: on your device, or paid
+
+The box has one switch with two words from the View: on your device, and paid. Local is the default and needs nothing. Paid runs the same request through OpenRouter with a key the visitor pastes once, kept in the device store under the page's origin and sent nowhere but the `Authorization` header to `openrouter.ai` (the browser may call it directly: the preflight from the page origin is allowed, so the paid path is zero servers too). The route is a rule in the model (`Provider`, `Route`, `route`), one theorem per row: a memo hit serves on both sides, paid without a key refuses with the View's word, paid offline refuses, local without a GPU refuses. The bytes OpenRouter receives are the model's `encodeOpenRouterRequest` (model, messages, the optional fields, stream, usage, reasoning off, and providers that honor every field), pinned by the corpus, never carrying a key. A paid answer is sealed like a local one, with OpenRouter's id, provider, usage and cost in its receipt and the honest note that it cannot be re derived on device; the identical request next is served from the seal, free, on either side. The endpoint follows the switch, or a request names `openrouter/<id>` explicitly; `/v1/models` lists the resident model and the three paid names. CI refuses any `sk-or-` string in the tree.
+
+## The κ object: every weight its own address
+
+`model/` also carries the first κ object built with this model's addressing rule (`Range`, `Obj`, `Shard`, `Manifest`; `expertPage`, `tablePage`, `objEntry`, `rootPreimage`, `admitPage`): edge0's 8B mixture of experts checkpoint, 1,550 tensor κs and 26,496 expert page κs derived straight off the wire with nothing stored by `HOLOGRAM/tools/kappa_object.py`. Every tensor is a κ over its bytes; every expert of every layer is a page κ over its rows; every fixed page of an n gram table would be a page κ; each shard's object list is its own κ object, one line per object as `objEntry` spells it; the manifest names them and the root is BLAKE3 over `rootPreimage`, the canonical JSON the model produces. The corpus feeds the real manifest and all 28,046 object lines through the crate and the wasm guest and refuses any drift; a page binds only if `admitPage` says the root lists it and the bytes derive it. The page arithmetic is checked: an overflow is a refusal, never a wrapped address.
 
 ## What is generated
 
@@ -36,7 +65,7 @@ Next on this page: the OpenAI compatible endpoint served by the same service wor
 2. lean4-prod, as PrismPM vendors it: every definition in `model/roots.txt` exported to kernel LCNF twice, byte identical, then generated to Rust twice, byte identical, into `generated/freeinference_core.rs`.
 3. The `core/` crate, which is that generated file behind a wrapper that only names the refusal type, built for the host and for `wasm32-unknown-unknown`; the wasm is copied to `site/core.wasm` and the page is projected from `view()`.
 
-`tools/corpus.py` then feeds a fixed request corpus to the generated core and compares the prompt and params bytes against the daemon's rule. `just vv` is the only definition of green; CI runs it.
+`tools/corpus.py` then feeds a fixed request corpus to the generated core and compares the prompt and params bytes against the daemon's rule, feeds the wire vectors and the OpenRouter request vectors to the encoders, and feeds the real edge0-8b κ object's manifest and object lines to the addressing rule, all through the crate and through `site/core.wasm`. `just vv` is the only definition of green; CI runs it. `scripts/plant.sh`, `scripts/plant-openrouter.sh` and `scripts/plant-address.sh` plant defects (a field swap in the completion encoder, a field swap in the OpenRouter request and a route that pays without a key, an off by one in the expert page) and show the corpus or Lean refusing each.
 
 ## What PrismPM itself does and does not do here, with evidence
 

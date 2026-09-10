@@ -18,6 +18,7 @@ extern crate alloc;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ComputeError {
     AddOverflow,
+    MulOverflow,
     OutputTooSmall,
 }
 

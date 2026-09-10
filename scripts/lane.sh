@@ -48,9 +48,10 @@ lake env lean --version >/dev/null 2>&1 || true
 # time, or a restored model would export a stale sibling's module.
 BUILD_ID=$("$LX" build | tee /dev/stderr | grep -o "build/[0-9a-f]*" | head -1 | cut -d/ -f2)
 [ -n "$BUILD_ID" ] || { echo "lexlean build reported no build id" >&2; exit 1; }
-"$LX" verify
-ATTESTATION=$(ls -t "$ROOT"/.lexlean/verified/*/attestation.json | head -1)
-echo "attestation: $ATTESTATION"
+# The attestation, like the build, is the one verify reports, not the newest by time.
+ATTESTATION_ID=$("$LX" verify | tee /dev/stderr | grep -o "attestation [0-9a-f]*" | head -1 | cut -d' ' -f2)
+[ -n "$ATTESTATION_ID" ] || { echo "lexlean verify reported no attestation" >&2; exit 1; }
+echo "attestation: $ROOT/.lexlean/verified/$ATTESTATION_ID/attestation.json"
 
 # 3. Export workspace: the generated Lean module beside vendored lean4-prod.
 WS="$WORK/export-ws"

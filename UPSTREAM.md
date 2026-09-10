@@ -27,3 +27,15 @@ None blocked the lane; each cost a reshaping of the model that a user should not
 
 - `\title` must be a lexicon phrase (`LLL1004`), so every model in the wild is titled `Boolean`. A free title, or a documented convention, would help.
 - `verify` reports one axiom policy violation per run; reporting all of them at once would turn `tools/pin_axioms.py` from a loop into one edit.
+
+## 5. What the endpoint step adds to request 1 and 2
+
+The wire encoders (`encodeCompletion`, the chunk encoders, `encodeError`, `encodeModels`) are exactly the response half of a PrismPM application root `dispatch(bytes) -> bytes`: byte strings out of a closed record, no View. Their acceptance vectors are in `model/wire.json` and are checked through the crate and through the Core-Wasm guest the same way the Calculator's vectors are. The day PrismPM accepts an application root without a View, or with a text View family, this model registers as one with no change to its declarations.
+
+## 6. Iterative recursion and list maps in lean4-prod
+
+Finding 8 in `VERIFICATION.md`: a structurally recursive definition over a list is generated as a call per element that clones its accumulator, so a list of tens of thousands of records cannot be folded in generated code (host and wasm stacks overflow). Request: tail recursion lowered to a loop, and a list map into a list (`UnsupportedList` today) at least for string results, so a model can spell a whole manifest and not only one line of it. Until then the object list is named by its κ and the join is the adapter's.
+
+## 7. Cross module names for one module per capability
+
+The Calculator and this repository are one module each. A model of several capabilities wants one `.lex.tex` per capability with names resolved across them; LexLean resolves names through lexicon package glossaries. Request: a documented path from a project's own modules to glossaries the other modules can `\useglossary`, or an import field in the semantic module, so `Address`, `Pool`, `Stage`, `Pack`, `Ladder` and `Loader` can be separate verified modules composed by one entrypoint.

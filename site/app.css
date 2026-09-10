@@ -64,7 +64,7 @@ body::before {
 /* The brand lockup from the kit, the white copy on a photo or the dark palette, the black copy on
    the light palette. Vector, so it is sharp at any density; a soft shadow keeps it legible on a photo. */
 .mark { position: fixed; top: 21px; left: 21px; display: inline-flex; padding: 3px; }
-.mark img { display: block; height: 30px; width: auto; }
+.mark img { display: block; height: 42px; width: auto; }
 .mark .on-light { display: none; }
 :root[data-holo-palette="light"][data-holo-immersive="off"] .mark .on-light { display: block; }
 :root[data-holo-palette="light"][data-holo-immersive="off"] .mark .on-dark { display: none; }
@@ -85,10 +85,11 @@ body::before {
   box-shadow: 0 13px 34px var(--shadow);
 }
 .popover[hidden] { display: none; }
-.mode { display: block; width: 100%; text-align: left; padding: 8px 13px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.mode { display: flex; align-items: center; justify-content: space-between; gap: 13px; width: 100%; text-align: left; padding: 8px 13px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.mode svg { flex: none; opacity: 0.8; }
 .mode:hover { background: var(--user); }
 .mode[aria-pressed="true"] { background: var(--user); font-weight: 500; }
-.walls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 5px 5px 2px; }
+.walls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 2px 5px 8px; }
 .walls:not(.on) { display: none; }
 .wall { aspect-ratio: 1.618; border-radius: 8px; border: 1.5px solid transparent; background-size: cover; background-position: center; cursor: pointer; }
 .wall[aria-pressed="true"] { border-color: var(--brand); }
@@ -148,7 +149,16 @@ button.badge:hover { color: var(--foreground); border-color: var(--brand); }
   main { padding: 55px 16px 55px; }
   .composer { padding: 16px 16px 13px; }
   .mark { top: 13px; left: 13px; }
-  .mark img { height: 26px; }
+  .mark img { height: 32px; }
   .appearance { top: 13px; right: 13px; }
   .popover { top: 58px; right: 13px; }
 }
+
+/* Who answers: one switch, two words; the paid side shows a model choice and, once, a key field. */
+.who { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.mode2 { font: inherit; font-size: 13px; padding: 5px 13px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted-foreground); cursor: pointer; }
+.mode2[aria-pressed="true"] { color: var(--foreground); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); background: color-mix(in srgb, var(--brand) 8%, transparent); }
+.pick { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); max-width: 60%; }
+.keyrow { display: flex; align-items: center; gap: 13px; margin-bottom: 8px; min-width: 0; }
+.keyrow[hidden], .pick[hidden] { display: none; }
+.key { font: inherit; font-size: 13px; flex: 1 1 auto; min-width: 0; padding: 8px 13px; border-radius: 10px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); }

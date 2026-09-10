@@ -28,6 +28,8 @@ jobs:
           key: lane-${{ hashFiles('PRISMPM_REV', 'lean-toolchain') }}
       - name: The authored model is what the author script writes
         run: python3 tools/author.py && git diff --exit-code -- src/Freeinference.lex.tex
+      - name: No key in the tree
+        run: '! git grep -n -E "sk-or-v1-[0-9a-f]{8}" -- . ":!*.md" || (echo "an OpenRouter key is in the tree" && exit 1)'
       - name: The lane, byte compared against the committed artifacts
         run: ./scripts/lane.sh
       - name: Byte identity corpus
