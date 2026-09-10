@@ -1,0 +1,67 @@
+{
+ "contentOf": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "optionalDecimal": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "paramsCanonical": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "paramsCanonical_empty": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "paramsCanonical_full": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "preimages": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "renderMessage": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "renderMessage_shape": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "renderPrompt": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "renderPrompt_singleUser": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "renderPrompt_twoTurns": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "roleOf": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "temperatureText": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ]
+}
