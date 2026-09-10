@@ -52,9 +52,14 @@ body::before {
 }
 .mono { font-family: var(--mono); font-size: 12.4px; }
 
-.mark { position: fixed; top: 21px; left: 21px; display: inline-flex; padding: 5px; border-radius: 8px; }
-.mark img { display: block; opacity: 0.9; }
-:root[data-holo-immersive="on"] .mark img, :root[data-holo-palette="dark"] .mark img { filter: invert(1); }
+/* The brand lockup from the kit, the white copy on a photo or the dark palette, the black copy on
+   the light palette. Vector, so it is sharp at any density; a soft shadow keeps it legible on a photo. */
+.mark { position: fixed; top: 21px; left: 21px; display: inline-flex; padding: 3px; }
+.mark img { display: block; height: 30px; width: auto; }
+.mark .on-light { display: none; }
+:root[data-holo-palette="light"][data-holo-immersive="off"] .mark .on-light { display: block; }
+:root[data-holo-palette="light"][data-holo-immersive="off"] .mark .on-dark { display: none; }
+:root[data-holo-immersive="on"] .mark img { filter: drop-shadow(0 1px 8px rgba(0, 0, 0, 0.45)); }
 
 /* The appearance tile, top right, and its popover: the frosted glass Hologram OS uses. */
 .appearance {
@@ -131,6 +136,7 @@ button.badge:hover { color: var(--foreground); border-color: var(--brand); }
 @media (max-width: 520px) {
   main { padding: 55px 16px 55px; }
   .mark { top: 13px; left: 13px; }
+  .mark img { height: 26px; }
   .appearance { top: 13px; right: 13px; }
   .popover { top: 58px; right: 13px; }
 }
