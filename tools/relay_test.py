@@ -122,6 +122,12 @@ try:
     check("hello from the page's origin mints a token", s == 200 and len(token) >= 24 and hello.get("port") == PORT, str(s))
     s, h, _ = http("OPTIONS", "/v1/chat/completions", origin=PAGE)
     check("page origin preflight allows authorization and the tab headers", h.get("Access-Control-Allow-Origin") == PAGE and "authorization" in h.get("Access-Control-Allow-Headers", "") and "x-freeinference-tab" in h.get("Access-Control-Allow-Headers", ""), str(h))
+    # Private Network Access: a public page's preflight that asks for the loopback is granted, so the
+    # live HTTPS site can reach this relay; a hostile origin's is not.
+    s, h, _ = http("OPTIONS", "/tab/hello", origin=PAGE, headers={"Access-Control-Request-Private-Network": "true"})
+    check("preflight grants private network access to the page", h.get("Access-Control-Allow-Private-Network") == "true", str(h))
+    s, h, _ = http("OPTIONS", "/tab/hello", origin=HOSTILE, headers={"Access-Control-Request-Private-Network": "true"})
+    check("preflight denies private network access to a hostile origin", "Access-Control-Allow-Private-Network" not in h, str(h))
     # A client without a bearer is refused before anything else.
     s, _, raw = http("GET", "/v1/models")
     check("/v1/models without Authorization refused with 401", s == 401 and json.loads(raw)["error"]["type"] == "authentication_error", str(s))

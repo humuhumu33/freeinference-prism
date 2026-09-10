@@ -133,7 +133,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self._t0 = time.time()
-        self.empty(204)
+        # Chrome's Private Network Access: a public HTTPS page (the live site) reaching this loopback
+        # must have its preflight answered with this header, or the browser blocks the request before
+        # it is sent. Granted only to an allowed origin, the same gate as the rest of CORS.
+        extra = ()
+        if self.origin_allowed() and self.headers.get("Access-Control-Request-Private-Network") == "true":
+            extra = (("Access-Control-Allow-Private-Network", "true"),)
+        self.send_response(204)
+        for k, v in extra:
+            self.send_header(k, v)
+        self.cors(); self.send_header("Content-Length", "0"); self.end_headers()
 
     def do_GET(self):
         self._t0 = time.time()
