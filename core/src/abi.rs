@@ -87,13 +87,10 @@ fn run(input: &[u8]) -> Value {
 pub fn view_json() -> Value {
     let v = view();
     json!({
-        "headline": v.headline, "lede": v.lede, "sub": v.sub,
-        "claimOne": v.claimOne, "claimTwo": v.claimTwo, "claimThree": v.claimThree,
-        "modelName": v.modelName, "promptPlaceholder": v.promptPlaceholder, "sendLabel": v.sendLabel,
+        "headline": v.headline, "lede": v.lede, "promptPlaceholder": v.promptPlaceholder, "sendLabel": v.sendLabel,
         "loadingLabel": v.loadingLabel, "residentLabel": v.residentLabel, "servedLabel": v.servedLabel,
         "sealedLabel": v.sealedLabel, "rederiveLabel": v.rederiveLabel, "identicalLabel": v.identicalLabel,
-        "noGpuLabel": v.noGpuLabel, "offlineLabel": v.offlineLabel, "exportLabel": v.exportLabel,
-        "importLabel": v.importLabel, "repoLabel": v.repoLabel, "repoUrl": v.repoUrl,
+        "noGpuLabel": v.noGpuLabel, "offlineLabel": v.offlineLabel, "repoLabel": v.repoLabel, "repoUrl": v.repoUrl,
     })
 }
 

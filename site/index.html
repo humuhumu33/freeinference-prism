@@ -3,48 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#151312">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f3f3ee">
 <title>Free verified AI inference.</title>
-<meta name="description" content="An open source runtime that verifies its own answers and makes computation reusable across machines, without running it again.">
+<meta name="description" content="Ask anything. Every answer is sealed on your device and can be checked again.">
 <link rel="icon" href="mark.svg" type="image/svg+xml">
 <link rel="manifest" href="app.webmanifest">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<header class="bar">
-  <a class="mark" href="./"><img src="mark.svg" alt="" width="22" height="22">freeinference</a>
-  <span class="state mono" id="state"></span>
-</header>
-
+<a class="mark" href="./" aria-label="freeinference"><img src="mark.svg" alt="" width="22" height="22"></a>
 <main>
-  <section class="hero">
-    <h1>Free verified AI inference.</h1>
-    <p class="lede">An open source runtime that verifies its own answers and makes computation reusable across machines, without running it again.</p>
-    <p class="sub">No account, no key, no price per token. It runs on your own GPU, in this browser, and keeps working offline.</p>
-  </section>
-
-  <section class="chat" id="chat">
-    <div class="messages" id="messages"></div>
-    <form class="composer" id="composer">
-      <textarea id="input" rows="2" placeholder="Ask anything" autocomplete="off"></textarea>
-      <div class="row"><span class="hint mono" id="hint"></span><button class="btn" id="send" type="submit">Send</button></div>
-    </form>
-    <p class="model mono">BitNet 2B 4T, ternary, 0.69 GB, verified block by block</p>
-  </section>
-
-  <section class="claims">
-    <p><span class="n mono">01</span>Every weight is content addressed and verified before use.</p>
-    <p><span class="n mono">02</span>Every answer is sealed under its own address and can be re derived on your device.</p>
-    <p><span class="n mono">03</span>A repeated prompt is served from its receipt, nothing runs again.</p>
-  </section>
-
-  <footer class="foot">
-    <div class="tools"><button class="link" id="export" type="button">Export store</button><label class="link" for="import">Import store</label><input id="import" type="file" accept="application/json" hidden></div>
-    <a class="link" href="https://github.com/humuhumu33/freeinference-prism">Source, proofs and receipts</a>
-  </footer>
+  <h1>Free verified AI inference.</h1>
+  <p class="lede">Ask anything. Every answer is sealed on your device and can be checked again.</p>
+  <div class="messages" id="messages"></div>
+  <form class="composer" id="composer">
+    <textarea id="input" rows="1" placeholder="Ask anything" autocomplete="off" autofocus></textarea>
+    <div class="row"><span class="hint mono" id="hint"></span><button class="btn" id="send" type="submit" aria-label="Ask">Ask</button></div>
+  </form>
+  <p class="state mono" id="state"></p>
 </main>
-
+<a class="how" href="https://github.com/humuhumu33/freeinference-prism">How it is built</a>
 <script type="module" src="app.js"></script>
 </body>
 </html>

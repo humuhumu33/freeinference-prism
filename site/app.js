@@ -137,6 +137,9 @@ function gpuIds(engine, messages) {
 // ---- the page
 const history = [];
 function setState(text, ok = false) { const s = $("state"); s.textContent = text; s.className = "state mono" + (ok ? " ok" : ""); }
+const grow = (t) => { t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 220) + "px"; };
+$("input").addEventListener("input", (e) => grow(e.target));
+$("input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("composer").requestSubmit(); } });
 function add(role, text) {
   const el = document.createElement("div"); el.className = `msg ${role}`; el.textContent = text;
   $("messages").appendChild(el); el.scrollIntoView({ block: "nearest" }); return el;
@@ -188,7 +191,7 @@ async function turn(messages, body, el) {
 $("composer").onsubmit = async (e) => {
   e.preventDefault();
   const text = $("input").value.trim(); if (!text) return;
-  $("input").value = ""; $("send").disabled = true;
+  $("input").value = ""; grow($("input")); $("send").disabled = true;
   add("user", text); history.push({ role: "user", content: text });
   const messages = history.slice();
   const body = { model: "webgpu:BitNet", messages, max_tokens: 512, temperature: "0.7" };
@@ -198,24 +201,6 @@ $("composer").onsubmit = async (e) => {
   finally { $("send").disabled = false; $("input").focus(); }
 };
 
-// ---- the portable cache: the whole store as one file, imported anywhere
-$("export").onclick = async () => {
-  const objects = await all();
-  const blob = new Blob([JSON.stringify({ spec: "freeinference/store/1", objects }, null, 0)], { type: "application/json" });
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "freeinference-store.json"; a.click();
-  setState(`exported ${objects.length} objects`, true);
-};
-$("import").onchange = async (e) => {
-  const file = e.target.files[0]; if (!file) return;
-  const json = JSON.parse(await file.text()); const kappa = await kappaReady(); let n = 0;
-  for (const o of json.objects || []) {
-    const bytes = enc.encode(typeof o.value === "string" ? o.value : JSON.stringify(o.value));
-    if (kappa(bytes) !== o.id) continue;   // refuse anything whose bytes do not hash to their address
-    const d = await db(); await new Promise((res) => { const t = d.transaction("objects", "readwrite"); t.objectStore("objects").put(o); t.oncomplete = res; }); n++;
-  }
-  setState(`imported ${n} objects, ${(json.objects || []).length - n} refused`, true);
-};
-
 // ---- start: the shell is precached for offline, the words come from the verified core
 (async () => {
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
@@ -223,7 +208,7 @@ $("import").onchange = async (e) => {
   const stored = (await all()).filter((o) => o.kind === "memo").length;
   if (!navigator.gpu) setState(VIEW.noGpuLabel);
   else if (!navigator.onLine) setState(VIEW.offlineLabel, true);
-  else setState(stored ? `${stored} answers on this device` : "ready", true);
+  else setState(stored ? `${VIEW.residentLabel}, ${stored} answers on this device` : VIEW.loadingLabel);
   window.addEventListener("offline", () => setState(VIEW.offlineLabel, true));
   if (navigator.gpu) gpuReady().catch((err) => setState(`Error: ${err.message}`));
 })();

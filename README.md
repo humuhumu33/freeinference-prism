@@ -18,14 +18,13 @@ LexLean models are modules that import each other, verified and content addresse
 
 ## The page, and the product in it
 
-`https://humuhumu33.github.io/freeinference-prism/` is the product: inference runs in the browser on your own GPU, with no server. It is a projection of the model, not a hand written page:
+`https://humuhumu33.github.io/freeinference-prism/` is the product: one headline, one line, one box. Inference runs in the browser on your own GPU, with no server. It is a projection of the model, not a hand written page:
 
-- every visible word is a field of the `View` record in the model, proven by Lean (`view_headline` pins the headline), and `core/src/bin/project_site.rs` renders `site/index.html`, the web manifest and the shell hash list from the generated `view()`; CI refuses a page whose words drifted from the model;
-- the rules the page applies are the generated core itself, `site/core.wasm`, reached through a small JSON ABI (`core/src/abi.rs`, a host transport adapter): memo preimages and the serve or refuse decision come from the verified code, addresses are BLAKE3 from the holospaces wasm, the store is IndexedDB on the device, receipts are Hologram Q's;
+- every visible word is a field of the `View` record in the model, proven by Lean (`view_headline` pins the headline), and `core/src/bin/project_site.rs` renders `site/index.html`, the web manifest, the shell hash list and the service worker from the generated `view()`; CI refuses a page whose words drifted from the model;
+- the rules the page applies are the generated core itself, `site/core.wasm`, reached through a small JSON ABI (`core/src/abi.rs`, a host transport adapter): memo preimages and the serve or refuse decision come from the verified code, addresses are BLAKE3 from the holospaces wasm, the store is IndexedDB on the device, receipts are Hologram Q's, and "check again" replays a sealed answer on the device;
 - the engine is Hologram Q's WebGPU ternary engine, the same hash listed snapshot under `site/q/`, streaming BitNet 2B 4T from Hugging Face once, verified block by block, then resident from the device store;
 - the shell is one versioned closure: the projector writes the closure digest into the service worker, so a new release is a new worker and a new cache, and the page keeps working offline;
-- the store exports as one file and imports anywhere, refusing any object whose bytes do not hash to its address;
-- the look is the Hologram brand kit: the warm dark tokens of `brand/css/hologram-warm.css` and its Archivo, Geist and Geist Mono web fonts, in `site/app.css`.
+- the look is the Hologram brand kit's light warm layer and its Archivo, Geist and Geist Mono web fonts, on a φ scale of type and spacing.
 
 Next on this page: the OpenAI compatible endpoint served by the same service worker on the page's origin, so any agent harness that can reach a page on that origin, or embed it, talks to the tab.
 

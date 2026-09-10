@@ -28,8 +28,8 @@ fn page() -> String {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#151312">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f3f3ee">
 <title>{title}</title>
 <meta name="description" content="{lede}">
 <link rel="icon" href="mark.svg" type="image/svg+xml">
@@ -37,54 +37,26 @@ fn page() -> String {
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<header class="bar">
-  <a class="mark" href="./"><img src="mark.svg" alt="" width="22" height="22">freeinference</a>
-  <span class="state mono" id="state"></span>
-</header>
-
+<a class="mark" href="./" aria-label="freeinference"><img src="mark.svg" alt="" width="22" height="22"></a>
 <main>
-  <section class="hero">
-    <h1>{title}</h1>
-    <p class="lede">{lede}</p>
-    <p class="sub">{sub}</p>
-  </section>
-
-  <section class="chat" id="chat">
-    <div class="messages" id="messages"></div>
-    <form class="composer" id="composer">
-      <textarea id="input" rows="2" placeholder="{placeholder}" autocomplete="off"></textarea>
-      <div class="row"><span class="hint mono" id="hint"></span><button class="btn" id="send" type="submit">{send}</button></div>
-    </form>
-    <p class="model mono">{model}</p>
-  </section>
-
-  <section class="claims">
-    <p><span class="n mono">01</span>{c1}</p>
-    <p><span class="n mono">02</span>{c2}</p>
-    <p><span class="n mono">03</span>{c3}</p>
-  </section>
-
-  <footer class="foot">
-    <div class="tools"><button class="link" id="export" type="button">{export}</button><label class="link" for="import">{import}</label><input id="import" type="file" accept="application/json" hidden></div>
-    <a class="link" href="{repo_url}">{repo}</a>
-  </footer>
+  <h1>{title}</h1>
+  <p class="lede">{lede}</p>
+  <div class="messages" id="messages"></div>
+  <form class="composer" id="composer">
+    <textarea id="input" rows="1" placeholder="{placeholder}" autocomplete="off" autofocus></textarea>
+    <div class="row"><span class="hint mono" id="hint"></span><button class="btn" id="send" type="submit" aria-label="{send}">{send}</button></div>
+  </form>
+  <p class="state mono" id="state"></p>
 </main>
-
+<a class="how" href="{repo_url}">{repo}</a>
 <script type="module" src="app.js"></script>
 </body>
 </html>
 "##,
         title = esc(&v.headline),
         lede = esc(&v.lede),
-        sub = esc(&v.sub),
         placeholder = esc(&v.promptPlaceholder),
         send = esc(&v.sendLabel),
-        model = esc(&v.modelName),
-        c1 = esc(&v.claimOne),
-        c2 = esc(&v.claimTwo),
-        c3 = esc(&v.claimThree),
-        export = esc(&v.exportLabel),
-        import = esc(&v.importLabel),
         repo = esc(&v.repoLabel),
         repo_url = esc(&v.repoUrl),
     );
@@ -99,8 +71,8 @@ fn webmanifest() -> String {
         "description": v.lede,
         "start_url": "./",
         "display": "standalone",
-        "background_color": "#151312",
-        "theme_color": "#151312",
+        "background_color": "#f3f3ee",
+        "theme_color": "#f3f3ee",
         "icons": [{ "src": "mark.svg", "sizes": "any", "type": "image/svg+xml" }]
     })
     .to_string()

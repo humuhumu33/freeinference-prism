@@ -33,11 +33,6 @@ pub struct Memo {
 pub struct View {
     pub headline: alloc::string::String,
     pub lede: alloc::string::String,
-    pub sub: alloc::string::String,
-    pub claimOne: alloc::string::String,
-    pub claimTwo: alloc::string::String,
-    pub claimThree: alloc::string::String,
-    pub modelName: alloc::string::String,
     pub promptPlaceholder: alloc::string::String,
     pub sendLabel: alloc::string::String,
     pub loadingLabel: alloc::string::String,
@@ -48,8 +43,6 @@ pub struct View {
     pub identicalLabel: alloc::string::String,
     pub noGpuLabel: alloc::string::String,
     pub offlineLabel: alloc::string::String,
-    pub exportLabel: alloc::string::String,
-    pub importLabel: alloc::string::String,
     pub repoLabel: alloc::string::String,
     pub repoUrl: alloc::string::String,
 }
@@ -156,6 +149,6 @@ pub fn temperatureText(request: &crate::Request) -> alloc::string::String {
 }
 
 pub fn view() -> crate::View {
-    { let _x_22 = crate::View { headline: alloc::string::String::from("Free verified AI inference."), lede: alloc::string::String::from("An open source runtime that verifies its own answers and makes computation reusable across machines, without running it again."), sub: alloc::string::String::from("No account, no key, no price per token. It runs on your own GPU, in this browser, and keeps working offline."), claimOne: alloc::string::String::from("Every weight is content addressed and verified before use."), claimTwo: alloc::string::String::from("Every answer is sealed under its own address and can be re derived on your device."), claimThree: alloc::string::String::from("A repeated prompt is served from its receipt, nothing runs again."), modelName: alloc::string::String::from("BitNet 2B 4T, ternary, 0.69 GB, verified block by block"), promptPlaceholder: alloc::string::String::from("Ask anything"), sendLabel: alloc::string::String::from("Send"), loadingLabel: alloc::string::String::from("loading the model"), residentLabel: alloc::string::String::from("resident on this GPU"), servedLabel: alloc::string::String::from("served from receipt, nothing ran"), sealedLabel: alloc::string::String::from("sealed on this GPU"), rederiveLabel: alloc::string::String::from("re derive on this GPU"), identicalLabel: alloc::string::String::from("re derived: identical"), noGpuLabel: alloc::string::String::from("This browser has no WebGPU. Stored answers still serve; a new prompt needs a WebGPU device."), offlineLabel: alloc::string::String::from("offline, serving from this device"), exportLabel: alloc::string::String::from("Export store"), importLabel: alloc::string::String::from("Import store"), repoLabel: alloc::string::String::from("Source, proofs and receipts"), repoUrl: alloc::string::String::from("https://github.com/humuhumu33/freeinference-prism") }; _x_22 }
+    { let _x_15 = crate::View { headline: alloc::string::String::from("Free verified AI inference."), lede: alloc::string::String::from("Ask anything. Every answer is sealed on your device and can be checked again."), promptPlaceholder: alloc::string::String::from("Ask anything"), sendLabel: alloc::string::String::from("Ask"), loadingLabel: alloc::string::String::from("getting the model, once"), residentLabel: alloc::string::String::from("ready"), servedLabel: alloc::string::String::from("instant, from the seal"), sealedLabel: alloc::string::String::from("sealed on your device"), rederiveLabel: alloc::string::String::from("check again"), identicalLabel: alloc::string::String::from("checked, identical"), noGpuLabel: alloc::string::String::from("This browser cannot run the model. Try Chrome or Edge on a computer."), offlineLabel: alloc::string::String::from("offline, working from your device"), repoLabel: alloc::string::String::from("How it is built"), repoUrl: alloc::string::String::from("https://github.com/humuhumu33/freeinference-prism") }; _x_15 }
 }
 
