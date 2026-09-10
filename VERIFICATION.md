@@ -99,7 +99,7 @@ Words: the switch, the key field, the paid model names, the cost chip and every 
 | Root | `blake3:2f62cfb5…` over a 1,052 byte manifest naming three object list κs; the object lists hold 28,046 lines |
 | The rule in the model | `rootPreimage` of the real manifest equals the Python restatement byte for byte through the crate and through `core.wasm`; every one of the 28,046 object lines equals the generated `objEntry`; `admitPage` admits a listed κ that derives, refuses a listed κ that does not and an unlisted one |
 | Page arithmetic | `expertPage` tiles 4 experts of 80 bytes at stride 20; `tablePage` tiles a 20 byte tensor into 6, 6, 6, 2; both refuse an overflowing offset (`Result`, `AddOverflow`, `MulOverflow`) instead of wrapping |
-| Qwen3.8-Flash-Next | 19 of 131 shards at 15 to 40 MB/s per stream, four streams, 156,256 κ per n gram table shard (320 KiB pages), when this was written; the root will be recorded when the run completes |
+| Qwen3.8-Flash-Next, off the wire | 131 shards, 360 GB, about 2.5 hours at 6 to 40 MB/s per stream with four streams: 1,658 tensor κ, 50,176 expert page κ, 5,000,064 table page κ (320 KiB pages), root `blake3:7aca5963…` over a 40,117 byte manifest; the manifest and its preimage are corpus vectors (`model/objects/qwen38-flash-next*`), the 856 MB of object lists live outside git |
 | This GPU through WebGPU | a 1 GiB storage buffer read in 6 ms, 195 GB/s, against the Q engine's 25 to 30 GB/s effective on BitNet: the spine kernel headroom |
 
 ## Planted defect

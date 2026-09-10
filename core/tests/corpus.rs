@@ -165,6 +165,22 @@ fn text(v: &Value) -> String {
 #[test]
 fn kappa_object_root_preimage_and_object_lines_match_on_the_real_manifest() {
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../model/objects/");
+    // The second object, Qwen3.8-Flash-Next (360 GB, 131 shards, 5,051,898 κ), carries only its manifest here;
+    // its 856 MB of object lists live outside git. Its preimage is checked the same way.
+    for name in ["qwen38-flash-next"] {
+        let m: Value = serde_json::from_str(&std::fs::read_to_string(format!("{dir}{name}.manifest.json")).expect("manifest")).unwrap();
+        let want = std::fs::read_to_string(format!("{dir}{name}.preimage.json")).expect("preimage");
+        let manifest = Manifest {
+            spec: text(&m["spec"]), repo: text(&m["repo"]), revision: text(&m["revision"]),
+            experts: m["experts"].as_u64().unwrap(), tableRows: m["table_rows"].as_u64().unwrap(),
+            shards: m["shards"].as_array().unwrap().iter().map(|sh| Shard {
+                label: text(&sh["name"]), bytes: sh["bytes"].as_u64().unwrap(), sha256: text(&sh["sha256"]), kappa: text(&sh["kappa"]), objects: text(&sh["objects"]),
+            }).collect(),
+        };
+        let got = rootPreimage(&manifest);
+        assert!(got == want, "{name}: root preimage differs from the Python restatement ({} vs {} bytes)", got.len(), want.len());
+        println!("kappa object {name}: preimage {} bytes identical, {} shards", got.len(), manifest.shards.len());
+    }
     let m: Value = serde_json::from_str(&std::fs::read_to_string(format!("{dir}edge0-8b.manifest.json")).expect("manifest")).unwrap();
     let want = std::fs::read_to_string(format!("{dir}edge0-8b.preimage.json")).expect("preimage");
     let manifest = Manifest {

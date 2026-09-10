@@ -58,6 +58,13 @@ for (const [resident, keyPresent, online, want] of readiness) {
   if (got !== want) { console.error(`guest: endpointReady(${resident},${keyPresent},${online}) = ${got}, want ${want}`); process.exit(1); }
 }
 // The κ object through the guest: the real edge0-8b manifest's root preimage, and the page rules.
+for (const name of ["qwen38-flash-next"]) {
+  const mf = JSON.parse(readFileSync(new URL(`../model/objects/${name}.manifest.json`, import.meta.url), "utf8"));
+  const want = readFileSync(new URL(`../model/objects/${name}.preimage.json`, import.meta.url), "utf8");
+  const got = run({ op: "root-preimage", manifest: mf }).bytes;
+  if (got !== want) { console.error(`guest: ${name} root preimage differs (${got.length} vs ${want.length} bytes)`); process.exit(1); }
+  console.log(`guest: kappa object ${name} preimage ${got.length} bytes identical through core.wasm (${mf.shards.length} shards)`);
+}
 const manifest = JSON.parse(readFileSync(new URL("../model/objects/edge0-8b.manifest.json", import.meta.url), "utf8"));
 const preimage = readFileSync(new URL("../model/objects/edge0-8b.preimage.json", import.meta.url), "utf8");
 const pre = run({ op: "root-preimage", manifest }).bytes;
