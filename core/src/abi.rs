@@ -88,11 +88,10 @@ pub fn view_json() -> Value {
     let v = view();
     json!({
         "headline": v.headline, "lede": v.lede, "promptPlaceholder": v.promptPlaceholder, "sendLabel": v.sendLabel,
-        "loadingLabel": v.loadingLabel, "residentLabel": v.residentLabel, "servedLabel": v.servedLabel,
+        "loadingLabel": v.loadingLabel, "servedLabel": v.servedLabel,
         "sealedLabel": v.sealedLabel, "rederiveLabel": v.rederiveLabel, "identicalLabel": v.identicalLabel,
-        "noGpuLabel": v.noGpuLabel, "offlineLabel": v.offlineLabel, "repoLabel": v.repoLabel, "repoUrl": v.repoUrl,
+        "noGpuLabel": v.noGpuLabel, "offlineLabel": v.offlineLabel,
         "modelLabel": v.modelLabel, "appearanceLabel": v.appearanceLabel, "darkLabel": v.darkLabel, "lightLabel": v.lightLabel, "immersiveLabel": v.immersiveLabel,
-        "photoLabel": v.photoLabel, "byLabel": v.byLabel, "unsplashLabel": v.unsplashLabel,
         "wallpapers": v.wallpapers.iter().map(|w| json!({ "file": w.file, "name": w.label, "by": w.author, "byUrl": w.authorUrl })).collect::<Vec<_>>(),
     })
 }

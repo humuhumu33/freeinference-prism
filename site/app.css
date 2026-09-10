@@ -55,11 +55,6 @@ body::before {
 .mark { position: fixed; top: 21px; left: 21px; display: inline-flex; padding: 5px; border-radius: 8px; }
 .mark img { display: block; opacity: 0.9; }
 :root[data-holo-immersive="on"] .mark img, :root[data-holo-palette="dark"] .mark img { filter: invert(1); }
-.how { position: fixed; right: 21px; bottom: 21px; color: var(--muted-foreground); font-size: 13px; text-decoration: none; }
-.how:hover { color: var(--foreground); }
-.credit { position: fixed; left: 21px; bottom: 21px; margin: 0; color: var(--muted-foreground); }
-.credit:empty { display: none; }
-.credit a { color: inherit; }
 
 /* The appearance tile, top right, and its popover: the frosted glass Hologram OS uses. */
 .appearance {
@@ -132,14 +127,10 @@ button.badge:hover { color: var(--foreground); border-color: var(--brand); }
 }
 .btn:hover { background: var(--button-hover); }
 .btn:disabled { opacity: 0.45; cursor: default; }
-.state { color: var(--muted-foreground); text-align: center; margin: 0; min-height: 20px; }
-.state.ok { color: var(--foreground); }
 
 @media (max-width: 520px) {
   main { padding: 55px 16px 55px; }
   .mark { top: 13px; left: 13px; }
   .appearance { top: 13px; right: 13px; }
   .popover { top: 58px; right: 13px; }
-  .how { right: 16px; bottom: 13px; }
-  .credit { left: 16px; bottom: 13px; max-width: 55vw; }
 }

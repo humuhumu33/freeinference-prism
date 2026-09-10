@@ -36,23 +36,17 @@ pub struct View {
     pub promptPlaceholder: alloc::string::String,
     pub sendLabel: alloc::string::String,
     pub loadingLabel: alloc::string::String,
-    pub residentLabel: alloc::string::String,
     pub servedLabel: alloc::string::String,
     pub sealedLabel: alloc::string::String,
     pub rederiveLabel: alloc::string::String,
     pub identicalLabel: alloc::string::String,
     pub noGpuLabel: alloc::string::String,
     pub offlineLabel: alloc::string::String,
-    pub repoLabel: alloc::string::String,
-    pub repoUrl: alloc::string::String,
     pub modelLabel: alloc::string::String,
     pub appearanceLabel: alloc::string::String,
     pub darkLabel: alloc::string::String,
     pub lightLabel: alloc::string::String,
     pub immersiveLabel: alloc::string::String,
-    pub photoLabel: alloc::string::String,
-    pub byLabel: alloc::string::String,
-    pub unsplashLabel: alloc::string::String,
     pub wallpapers: alloc::vec::Vec<crate::Wallpaper>,
 }
 
@@ -166,6 +160,6 @@ pub fn temperatureText(request: &crate::Request) -> alloc::string::String {
 }
 
 pub fn view() -> crate::View {
-    { let _x_27 = crate::Wallpaper { file: alloc::string::String::from("alps.jpg"), label: alloc::string::String::from("Alpine Dawn"), author: alloc::string::String::from("Unsplash"), authorUrl: alloc::string::String::from("https://unsplash.com/?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_32 = crate::Wallpaper { file: alloc::string::String::from("galaxy.jpg"), label: alloc::string::String::from("Galaxy"), author: alloc::string::String::from("Tiago Ferreira"), authorUrl: alloc::string::String::from("https://unsplash.com/@tiago_f_ferreira?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_37 = crate::Wallpaper { file: alloc::string::String::from("aurora.jpg"), label: alloc::string::String::from("Aurora"), author: alloc::string::String::from("Lightscape"), authorUrl: alloc::string::String::from("https://unsplash.com/@lightscape?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_39 = alloc::vec![_x_37]; { let _x_40 = { let mut __list = alloc::vec![_x_32]; __list.extend(_x_39); __list }; { let _x_41 = { let mut __list = alloc::vec![_x_27]; __list.extend(_x_40); __list }; { let _x_42 = crate::View { headline: alloc::string::String::from("Free verified AI inference."), lede: alloc::string::String::from("Ask anything. Every answer is sealed on your device and can be checked again."), promptPlaceholder: alloc::string::String::from("Ask anything"), sendLabel: alloc::string::String::from("Ask"), loadingLabel: alloc::string::String::from("getting the model, once"), residentLabel: alloc::string::String::from("ready"), servedLabel: alloc::string::String::from("Instant, from the seal"), sealedLabel: alloc::string::String::from("Sealed"), rederiveLabel: alloc::string::String::from("Check again"), identicalLabel: alloc::string::String::from("Checked, identical"), noGpuLabel: alloc::string::String::from("This browser cannot run the model. Try Chrome or Edge on a computer."), offlineLabel: alloc::string::String::from("offline, working from your device"), repoLabel: alloc::string::String::from("How it is built"), repoUrl: alloc::string::String::from("https://github.com/humuhumu33/freeinference-prism"), modelLabel: alloc::string::String::from("BitNet 2B, on your device"), appearanceLabel: alloc::string::String::from("Appearance"), darkLabel: alloc::string::String::from("Dark"), lightLabel: alloc::string::String::from("Light"), immersiveLabel: alloc::string::String::from("Immersive"), photoLabel: alloc::string::String::from("Photo"), byLabel: alloc::string::String::from("by"), unsplashLabel: alloc::string::String::from("on Unsplash"), wallpapers: _x_41 }; _x_42 } } } } } } }
+    { let _x_21 = crate::Wallpaper { file: alloc::string::String::from("alps.jpg"), label: alloc::string::String::from("Alpine Dawn"), author: alloc::string::String::from("Unsplash"), authorUrl: alloc::string::String::from("https://unsplash.com/?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_26 = crate::Wallpaper { file: alloc::string::String::from("galaxy.jpg"), label: alloc::string::String::from("Galaxy"), author: alloc::string::String::from("Tiago Ferreira"), authorUrl: alloc::string::String::from("https://unsplash.com/@tiago_f_ferreira?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_31 = crate::Wallpaper { file: alloc::string::String::from("aurora.jpg"), label: alloc::string::String::from("Aurora"), author: alloc::string::String::from("Lightscape"), authorUrl: alloc::string::String::from("https://unsplash.com/@lightscape?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_33 = alloc::vec![_x_31]; { let _x_34 = { let mut __list = alloc::vec![_x_26]; __list.extend(_x_33); __list }; { let _x_35 = { let mut __list = alloc::vec![_x_21]; __list.extend(_x_34); __list }; { let _x_36 = crate::View { headline: alloc::string::String::from("Free verified AI inference."), lede: alloc::string::String::from("Ask anything. Every answer is sealed on your device and can be checked again."), promptPlaceholder: alloc::string::String::from("Ask anything"), sendLabel: alloc::string::String::from("Ask"), loadingLabel: alloc::string::String::from("getting the model, once"), servedLabel: alloc::string::String::from("Instant, from the seal"), sealedLabel: alloc::string::String::from("Sealed"), rederiveLabel: alloc::string::String::from("Check again"), identicalLabel: alloc::string::String::from("Checked, identical"), noGpuLabel: alloc::string::String::from("This browser cannot run the model. Try Chrome or Edge on a computer."), offlineLabel: alloc::string::String::from("offline, working from your device"), modelLabel: alloc::string::String::from("BitNet 2B, on your device"), appearanceLabel: alloc::string::String::from("Appearance"), darkLabel: alloc::string::String::from("Dark"), lightLabel: alloc::string::String::from("Light"), immersiveLabel: alloc::string::String::from("Immersive"), wallpapers: _x_35 }; _x_36 } } } } } } }
 }
 

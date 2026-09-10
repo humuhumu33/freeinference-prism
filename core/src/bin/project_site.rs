@@ -68,10 +68,7 @@ fn page() -> String {
     <textarea id="input" rows="1" placeholder="{placeholder}" autocomplete="off" autofocus></textarea>
     <div class="row"><span class="hint mono" id="hint"></span><button class="btn" id="send" type="submit" aria-label="{send}">{send}</button></div>
   </form>
-  <p class="state mono" id="state"></p>
 </main>
-<p class="credit mono" id="credit"></p>
-<a class="how" href="{repo_url}">{repo}</a>
 <script type="module" src="app.js"></script>
 </body>
 </html>
@@ -80,8 +77,6 @@ fn page() -> String {
         lede = esc(&v.lede),
         placeholder = esc(&v.promptPlaceholder),
         send = esc(&v.sendLabel),
-        repo = esc(&v.repoLabel),
-        repo_url = esc(&v.repoUrl),
         appearance = esc(&v.appearanceLabel),
         dark = esc(&v.darkLabel),
         light = esc(&v.lightLabel),

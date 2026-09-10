@@ -119,7 +119,7 @@ function gpuReady() {
     });
     if (!loaded || !loaded.gpu) throw new Error("model load failed");
     gpuEngine = await E.createEngine(gpuModel, loaded);
-    setState(`${VIEW.residentLabel} · ${((performance.now() - t0) / 1000).toFixed(1)} s`, true);
+    setState("");
     return gpuEngine;
   })().catch((err) => { gpuLoading = null; throw err; });
   return gpuLoading;
@@ -137,7 +137,8 @@ function gpuIds(engine, messages) {
 
 // ---- the page
 const history = [];
-function setState(text, ok = false) { const s = $("state"); s.textContent = text; s.className = "state mono" + (ok ? " ok" : ""); }
+// Progress and states show in the hint inside the box; ready shows nothing.
+function setState(text) { $("hint").textContent = text || ""; }
 const grow = (t) => { t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 220) + "px"; };
 $("input").addEventListener("input", (e) => grow(e.target));
 $("input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("composer").requestSubmit(); } });
@@ -220,8 +221,6 @@ function applyTheme(s) {
   for (const b of document.querySelectorAll(".mode")) b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
   for (const b of document.querySelectorAll(".wall")) b.setAttribute("aria-pressed", String(s.immersive && b.dataset.wall === s.wallpaper));
   $("walls").classList.toggle("on", !!s.immersive);
-  const w = s.immersive && WALLS.find((x) => x.file === s.wallpaper);
-  $("credit").innerHTML = w && VIEW ? `${VIEW.photoLabel} <strong>${w.name}</strong> ${VIEW.byLabel} <a href="${w.byUrl}" rel="noopener">${w.by}</a> <a href="https://unsplash.com/?utm_source=Hologram_AI&utm_medium=referral" rel="noopener">${VIEW.unsplashLabel}</a>` : "";
 }
 function setMode(mode) {
   const s = readTheme();
@@ -238,10 +237,8 @@ for (const b of document.querySelectorAll(".wall")) b.onclick = () => applyTheme
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   const c = await coreReady(); VIEW = c.run({ op: "view" });
   applyTheme(readTheme());
-  const stored = (await all()).filter((o) => o.kind === "memo").length;
   if (!navigator.gpu) setState(VIEW.noGpuLabel);
-  else if (!navigator.onLine) setState(VIEW.offlineLabel, true);
-  else setState(stored ? `${VIEW.residentLabel}, ${stored} answers on this device` : VIEW.loadingLabel);
-  window.addEventListener("offline", () => setState(VIEW.offlineLabel, true));
+  else if (!navigator.onLine) setState(VIEW.offlineLabel);
+  window.addEventListener("offline", () => setState(VIEW.offlineLabel));
   if (navigator.gpu) gpuReady().catch((err) => setState(`Error: ${err.message}`));
 })();
