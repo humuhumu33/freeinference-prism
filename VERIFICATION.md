@@ -30,6 +30,24 @@ String literal equality is not kernel reducible in Lean 4.32, where `String` is 
 
 The wasm32 build is 326 bytes because the crate exports no C ABI yet; the guest ABI is the adapter's job, not the model's.
 
+## Measured, the page, 2026-09-10
+
+Served locally from `site/` on this machine's browser pane, then the same files deployed by the Pages workflow.
+
+| Case | Result |
+| --- | --- |
+| Words | `site/index.html` projected from `view()`; the headline is theorem `view_headline`; zero hyphens in the View's strings |
+| Core in the browser | `site/core.wasm` 118 KB, the generated core behind the JSON ABI; `view`, `preimages` and `decide` answered from it |
+| Shell | 36 files hash listed in `manifest.json`, every digest equal to hashlib's; closure written into the worker; the worker precached the closure and, on a changed stylesheet, installed the new closure and dropped the old cache |
+| First visit | BitNet 2B 4T streamed from Hugging Face and verified block by block, resident on the GPU in 56.7 s |
+| Later visit | Resident from the device store in 4.6 s to 6.9 s |
+| First answer | Cold prefill, first token 1361 ms, a short answer in 1660 ms, sealed under a Q receipt, stored with its answer bytes and memo |
+| Repeat after reload | Served from the receipt in 4 ms, while the model was still loading; memo key from the wasm core, address from the holospaces wasm, integrity from the receipt's own `did:holo` |
+| Re-derive | The stored receipt replayed on the GPU: identical |
+| Phone viewport | 375 px wide: no horizontal overflow after the composer row fix; the page paints with the shell alone |
+
+Not measured yet: a second device with a different GPU, and the airplane test with the model already resident (the shell part is by construction; the model part is the engine's device store).
+
 ## Planted defect
 
 The params key order swapped in the model (`temperature` before `seed` in `tools/author.py`, regenerated, lane run with `LANE_WRITE=1`):

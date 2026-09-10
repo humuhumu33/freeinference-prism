@@ -16,13 +16,26 @@ The trust core of [freeinference](https://github.com/humuhumu33/freeinference), 
 
 LexLean models are modules that import each other, verified and content addressed one by one; PrismPM's own stdlib is a tree of `Foundation/Holo/V1/*.lex.tex` and `Foundation/View/...` modules referenced across files, and a project declares `source_roots`, `entrypoints` and an import depth. So freeinference's law, one capability equals one module, carries over unchanged: one `.lex.tex` module per capability, one entrypoint that composes them, one generated crate per module if wanted. What is not modular in PrismPM v0.3 is the application unit: one closed application root per `.holo`, one View family.
 
+## The page, and the product in it
+
+`https://humuhumu33.github.io/freeinference-prism/` is the product: inference runs in the browser on your own GPU, with no server. It is a projection of the model, not a hand written page:
+
+- every visible word is a field of the `View` record in the model, proven by Lean (`view_headline` pins the headline), and `core/src/bin/project_site.rs` renders `site/index.html`, the web manifest and the shell hash list from the generated `view()`; CI refuses a page whose words drifted from the model;
+- the rules the page applies are the generated core itself, `site/core.wasm`, reached through a small JSON ABI (`core/src/abi.rs`, a host transport adapter): memo preimages and the serve or refuse decision come from the verified code, addresses are BLAKE3 from the holospaces wasm, the store is IndexedDB on the device, receipts are Hologram Q's;
+- the engine is Hologram Q's WebGPU ternary engine, the same hash listed snapshot under `site/q/`, streaming BitNet 2B 4T from Hugging Face once, verified block by block, then resident from the device store;
+- the shell is one versioned closure: the projector writes the closure digest into the service worker, so a new release is a new worker and a new cache, and the page keeps working offline;
+- the store exports as one file and imports anywhere, refusing any object whose bytes do not hash to its address;
+- the look is the Hologram brand kit: the warm dark tokens of `brand/css/hologram-warm.css` and its Archivo, Geist and Geist Mono web fonts, in `site/app.css`.
+
+Next on this page: the OpenAI compatible endpoint served by the same service worker on the page's origin, so any agent harness that can reach a page on that origin, or embed it, talks to the tab.
+
 ## What is generated
 
 `scripts/lane.sh` replays the whole lane from the committed tree, on Linux:
 
 1. LexLean, the compiler PrismPM vendors, at the PrismPM commit in `PRISMPM_REV`: `lock` must be current, then `check`, `build`, `verify` (Lean, leanchecker replay, per declaration axiom audit).
 2. lean4-prod, as PrismPM vendors it: every definition in `model/roots.txt` exported to kernel LCNF twice, byte identical, then generated to Rust twice, byte identical, into `generated/freeinference_core.rs`.
-3. The `core/` crate, which is that generated file behind a wrapper that only names the refusal type, built for the host and for `wasm32-unknown-unknown`.
+3. The `core/` crate, which is that generated file behind a wrapper that only names the refusal type, built for the host and for `wasm32-unknown-unknown`; the wasm is copied to `site/core.wasm` and the page is projected from `view()`.
 
 `tools/corpus.py` then feeds a fixed request corpus to the generated core and compares the prompt and params bytes against the daemon's rule. `just vv` is the only definition of green; CI runs it.
 

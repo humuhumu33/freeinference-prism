@@ -10,3 +10,4 @@ renderMessage
 renderPrompt
 roleOf
 temperatureText
+view

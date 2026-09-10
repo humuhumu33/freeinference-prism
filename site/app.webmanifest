@@ -1,0 +1,1 @@
+{"background_color":"#151312","description":"An open source runtime that verifies its own answers and makes computation reusable across machines, without running it again.","display":"standalone","icons":[{"sizes":"any","src":"mark.svg","type":"image/svg+xml"}],"name":"freeinference","short_name":"freeinference","start_url":"./","theme_color":"#151312"}

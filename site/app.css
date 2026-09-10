@@ -1,0 +1,101 @@
+/* Tokens from Hologram-Technologies/hologram-brand-kit, brand/css/hologram-warm.css, the dark layer,
+   and the kit's web fonts (Archivo for display, Geist for text, Geist Mono for addresses). */
+@font-face { font-family: "Archivo"; src: url("fonts/Archivo-SemiBold.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Archivo"; src: url("fonts/Archivo-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("fonts/Geist-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("fonts/Geist-Medium.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url("fonts/GeistMono-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+
+:root {
+  color-scheme: dark;
+  --background: #151312;
+  --foreground: #f6f5f4;
+  --card: #1e1c1b;
+  --card-foreground: #f6f5f4;
+  --secondary: #282624;
+  --muted-foreground: #a6a4a2;
+  --primary: #e7e5e3;
+  --brand: #e93b01;
+  --border: #ffffff1a;
+  --ring: #757371;
+  --radius: 0.625rem;
+  --display: "Archivo", "Geist", system-ui, sans-serif;
+  --text: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+html { height: 100%; }
+body {
+  margin: 0; min-height: 100%;
+  background: var(--background); color: var(--foreground);
+  font-family: var(--text); font-size: 16px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.mono { font-family: var(--mono); font-size: 12px; letter-spacing: 0; }
+a { color: inherit; }
+
+.bar {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 20px; background: color-mix(in srgb, var(--background) 88%, transparent);
+  backdrop-filter: blur(10px); border-bottom: 1px solid var(--border);
+}
+.mark { display: inline-flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 600; letter-spacing: -0.01em; text-decoration: none; }
+.mark img { display: block; }
+.state { color: var(--muted-foreground); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55vw; min-width: 0; }
+.state.ok { color: var(--foreground); }
+
+main { max-width: 760px; margin: 0 auto; padding: 40px 20px 48px; display: grid; gap: 36px; min-width: 0; overflow-wrap: anywhere; }
+
+.hero h1 {
+  font-family: var(--display); font-weight: 700; letter-spacing: -0.03em; line-height: 1.02;
+  font-size: clamp(34px, 7vw, 56px); margin: 0 0 14px;
+}
+.lede { font-size: clamp(17px, 2.4vw, 20px); line-height: 1.45; margin: 0 0 8px; max-width: 640px; }
+.sub { color: var(--muted-foreground); margin: 0; max-width: 640px; }
+
+.chat { display: grid; gap: 10px; }
+.messages { display: grid; gap: 10px; min-height: 0; }
+.msg { padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--border); white-space: pre-wrap; word-break: break-word; }
+.msg.user { background: var(--secondary); }
+.msg.assistant { background: var(--card); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--muted-foreground); font-family: var(--mono); font-size: 11px;
+  background: transparent; text-decoration: none; cursor: default;
+}
+.badge.ok { color: var(--foreground); border-color: color-mix(in srgb, var(--brand) 55%, var(--border)); }
+button.badge { cursor: pointer; }
+button.badge:hover { color: var(--foreground); }
+
+.composer { display: grid; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
+.composer textarea {
+  width: 100%; resize: vertical; min-height: 56px; background: transparent; color: var(--foreground);
+  border: 0; outline: none; font: inherit; padding: 6px 8px;
+}
+.composer .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.hint { color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+.btn {
+  border: 0; border-radius: 999px; padding: 9px 16px; background: var(--brand); color: #fff;
+  font: inherit; font-weight: 500; cursor: pointer; flex: none;
+}
+.btn:disabled { opacity: 0.55; cursor: default; }
+.model { color: var(--muted-foreground); margin: 0; }
+
+.claims { display: grid; gap: 10px; border-top: 1px solid var(--border); padding-top: 24px; }
+.claims p { margin: 0; display: grid; grid-template-columns: 34px 1fr; gap: 10px; color: var(--muted-foreground); }
+.claims .n { color: var(--brand); padding-top: 3px; }
+
+.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; border-top: 1px solid var(--border); padding-top: 20px; color: var(--muted-foreground); font-size: 14px; }
+.tools { display: flex; gap: 16px; }
+.link { background: none; border: 0; padding: 0; color: var(--muted-foreground); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.link:hover { color: var(--foreground); }
+
+@media (max-width: 520px) {
+  main { padding: 28px 16px 40px; gap: 28px; }
+  .bar { padding: 12px 16px; }
+  .claims p { grid-template-columns: 28px 1fr; }
+}

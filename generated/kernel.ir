@@ -9,6 +9,8 @@
 
   (type "PrismFreeinference.Freeinference.Memo" (ctor "PrismFreeinference.Freeinference.Memo.mk" (model (List String)) (engineKappa String) (promptKappa String) (paramsKappa String) (outputKappa String) (receipt String)))
 
+  (type "PrismFreeinference.Freeinference.View" (ctor "PrismFreeinference.Freeinference.View.mk" (headline String) (lede String) (sub String) (claimOne String) (claimTwo String) (claimThree String) (modelName String) (promptPlaceholder String) (sendLabel String) (loadingLabel String) (residentLabel String) (servedLabel String) (sealedLabel String) (rederiveLabel String) (identicalLabel String) (noGpuLabel String) (offlineLabel String) (exportLabel String) (importLabel String) (repoLabel String) (repoUrl String)))
+
   (type "PrismFreeinference.Freeinference.Decision" (ctor "PrismFreeinference.Freeinference.Decision.Serve") (ctor "PrismFreeinference.Freeinference.Decision.Execute") (ctor "PrismFreeinference.Freeinference.Decision.Refuse"))
 
   ;; full: PrismFreeinference.Freeinference.anyEqual
@@ -65,4 +67,8 @@
   ;; arity: 5 erased/type args dropped
   (def temperatureText ((request (named "PrismFreeinference.Freeinference.Request"))) String
     (let _x_1 0 (let _x_2 0 (let _x_3 (proj "PrismFreeinference.Freeinference.Request" "temperature" request) (let _x_4 (string "") (let _x_5 (eq _x_3 _x_4) (cases _x_5 (alt "Bool.false" () (let _x_60 (string "\n") (let _x_61 2147483647 (let _x_62 (split-exact _x_3 _x_60 _x_61) (cases _x_62 (alt "Option.none" () (let _x_63 (string "") _x_63)) (alt "Option.some" (val_64) (let _x_65 (string "\n") (let _x_66 (join val_64 _x_65) _x_66)))))))) (alt "Bool.true" () (let _x_59 (string "null") _x_59)))))))))
+
+  ;; full: PrismFreeinference.Freeinference.view
+  (def view () (named "PrismFreeinference.Freeinference.View")
+    (let _x_1 (string "Free verified AI inference.") (let _x_2 (string "An open source runtime that verifies its own answers and makes computation reusable across machines, without running it again.") (let _x_3 (string "No account, no key, no price per token. It runs on your own GPU, in this browser, and keeps working offline.") (let _x_4 (string "Every weight is content addressed and verified before use.") (let _x_5 (string "Every answer is sealed under its own address and can be re derived on your device.") (let _x_6 (string "A repeated prompt is served from its receipt, nothing runs again.") (let _x_7 (string "BitNet 2B 4T, ternary, 0.69 GB, verified block by block") (let _x_8 (string "Ask anything") (let _x_9 (string "Send") (let _x_10 (string "loading the model") (let _x_11 (string "resident on this GPU") (let _x_12 (string "served from receipt, nothing ran") (let _x_13 (string "sealed on this GPU") (let _x_14 (string "re derive on this GPU") (let _x_15 (string "re derived: identical") (let _x_16 (string "This browser has no WebGPU. Stored answers still serve; a new prompt needs a WebGPU device.") (let _x_17 (string "offline, serving from this device") (let _x_18 (string "Export store") (let _x_19 (string "Import store") (let _x_20 (string "Source, proofs and receipts") (let _x_21 (string "https://github.com/humuhumu33/freeinference-prism") (let _x_22 (ctor "PrismFreeinference.Freeinference.View.mk" _x_1 _x_2 _x_3 _x_4 _x_5 _x_6 _x_7 _x_8 _x_9 _x_10 _x_11 _x_12 _x_13 _x_14 _x_15 _x_16 _x_17 _x_18 _x_19 _x_20 _x_21) _x_22)))))))))))))))))))))))
 )

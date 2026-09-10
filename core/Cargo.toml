@@ -9,9 +9,21 @@ repository = "https://github.com/humuhumu33/freeinference-prism"
 [lib]
 crate-type = ["rlib", "cdylib"]
 
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
 [dependencies]
+# The browser boundary and the page projector speak JSON; the model does not.
+serde_json = "1"
+
+[[bin]]
+name = "project-site"
+path = "src/bin/project_site.rs"
 
 [dev-dependencies]
-serde_json = "1"
 
 [workspace]

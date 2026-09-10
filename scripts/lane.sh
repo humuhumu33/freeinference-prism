@@ -133,10 +133,19 @@ else
   compare "$WS/generated.rs" "$ROOT/generated/freeinference_core.rs"
 fi
 
-# 6. The generated core compiles for the host and for wasm32.
+# 6. The generated core for the host and for wasm32; the wasm is what the page loads.
 cd "$ROOT/core"
 rustup target add wasm32-unknown-unknown >/dev/null 2>&1 || true
 cargo build --release -q
 cargo build --release -q --target wasm32-unknown-unknown
-ls -la target/wasm32-unknown-unknown/release/*.wasm
+cp target/wasm32-unknown-unknown/release/freeinference_core.wasm "$ROOT/site/core.wasm"
+ls -la "$ROOT/site/core.wasm"
+
+# 7. The page is a projection of the verified View: index.html, the web manifest and the shell
+#    hash list are written from view() by the projector. Compare mode refuses drift in the words.
+cargo run --release -q --bin project-site
+cd "$ROOT"
+if [ "${LANE_WRITE:-0}" != "1" ]; then
+  git diff --exit-code -- site/index.html site/app.webmanifest || { echo "site/index.html drifted from the projected View; run LANE_WRITE=1 ./scripts/lane.sh and commit" >&2; exit 1; }
+fi
 echo "lane: green"

@@ -101,6 +101,12 @@ decls = [
     # The bytes the hash adapter addresses; the model owns preimages, not digests.
     structure("Preimages", prompt=BYTES, params=BYTES),
     inductive("Decision", "Serve", "Execute", "Refuse"),
+    # Every visible word of the page. The page is projected from this record by core/src/bin/project-site.rs;
+    # no copy is written in HTML. Zero hyphens in any string, as the product's site rule requires.
+    structure("View", headline=STRING, lede=STRING, sub=STRING, claimOne=STRING, claimTwo=STRING, claimThree=STRING,
+              modelName=STRING, promptPlaceholder=STRING, sendLabel=STRING, loadingLabel=STRING, residentLabel=STRING,
+              servedLabel=STRING, sealedLabel=STRING, rederiveLabel=STRING, identicalLabel=STRING, noGpuLabel=STRING,
+              offlineLabel=STRING, exportLabel=STRING, importLabel=STRING, repoLabel=STRING, repoUrl=STRING),
 
     # Owned copies of projected strings live in their own record taking definitions: the generator
     # borrows a record parameter and returns an owned string, and a match nested inside a list literal
@@ -145,6 +151,28 @@ decls = [
                 call("intersects", project("model", var("memo")), var("candidates")),
                 b(False)),
             b(False))),
+    definition("view", [], named("View"), record("View",
+        headline=s("Free verified AI inference."),
+        lede=s("An open source runtime that verifies its own answers and makes computation reusable across machines, without running it again."),
+        sub=s("No account, no key, no price per token. It runs on your own GPU, in this browser, and keeps working offline."),
+        claimOne=s("Every weight is content addressed and verified before use."),
+        claimTwo=s("Every answer is sealed under its own address and can be re derived on your device."),
+        claimThree=s("A repeated prompt is served from its receipt, nothing runs again."),
+        modelName=s("BitNet 2B 4T, ternary, 0.69 GB, verified block by block"),
+        promptPlaceholder=s("Ask anything"),
+        sendLabel=s("Send"),
+        loadingLabel=s("loading the model"),
+        residentLabel=s("resident on this GPU"),
+        servedLabel=s("served from receipt, nothing ran"),
+        sealedLabel=s("sealed on this GPU"),
+        rederiveLabel=s("re derive on this GPU"),
+        identicalLabel=s("re derived: identical"),
+        noGpuLabel=s("This browser has no WebGPU. Stored answers still serve; a new prompt needs a WebGPU device."),
+        offlineLabel=s("offline, serving from this device"),
+        exportLabel=s("Export store"),
+        importLabel=s("Import store"),
+        repoLabel=s("Source, proofs and receipts"),
+        repoUrl=s("https://github.com/humuhumu33/freeinference-prism"))),
     definition("decide", [("hit", BOOL), ("workerAttached", BOOL)], named("Decision"),
         if_(var("hit"), ctor("Decision.Serve"), if_(var("workerAttached"), ctor("Decision.Execute"), ctor("Decision.Refuse")))),
 
@@ -162,6 +190,7 @@ decls = [
         eq(call("paramsCanonical", request(nil(named("Message")))), params_body(request(nil(named("Message")))))),
     theorem("paramsCanonical_full",
         eq(call("paramsCanonical", request(nil(named("Message")), 32, 1, "0.0")), params_body(request(nil(named("Message")), 32, 1, "0.0")))),
+    theorem("view_headline", eq(project("headline", call("view")), s("Free verified AI inference."))),
     theorem("decide_serve", eq(call("decide", b(True), b(False)), ctor("Decision.Serve"))),
     theorem("decide_execute", eq(call("decide", b(False), b(True)), ctor("Decision.Execute"))),
     theorem("decide_refuse", eq(call("decide", b(False), b(False)), ctor("Decision.Refuse"))),

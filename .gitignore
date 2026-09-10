@@ -3,3 +3,6 @@
 target/
 core/target/
 __pycache__/
+site/core.wasm
+site/manifest.json
+site/sw.js

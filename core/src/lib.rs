@@ -8,7 +8,7 @@
 //! this file, which only names the refusal type the generated code returns.
 //! The generated code uses owned strings and vectors, so this crate links std.
 
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 #![allow(non_snake_case, unused_parens, unused_variables, clippy::all, clippy::pedantic)]
 
 extern crate alloc;
@@ -22,3 +22,7 @@ pub enum ComputeError {
 }
 
 include!("../../generated/freeinference_core.rs");
+
+/// The browser boundary, a host transport adapter over the generated core.
+#[allow(unsafe_code)]
+pub mod abi;

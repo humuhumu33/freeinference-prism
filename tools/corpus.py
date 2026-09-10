@@ -65,5 +65,15 @@ print(f"wrote {out}: {len(cases)} cases")
 
 if "--write-only" in sys.argv:
     sys.exit(0)
+
+# The shell hash list the service worker precaches from must match hashlib over the files.
+import hashlib
+manifest_path = root / "site" / "manifest.json"
+if manifest_path.exists():
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    bad = [f["path"] for f in manifest["files"] if hashlib.sha256((root / "site" / f["path"]).read_bytes()).hexdigest() != f["sha256"]]
+    if bad:
+        sys.exit(f"site/manifest.json digests differ from hashlib on: {bad}")
+    print(f"site/manifest.json: {len(manifest['files'])} shell files, every SHA-256 matches hashlib; closure {manifest['closure'][:12]}")
 run = subprocess.run(["cargo", "test", "--release", "-q", "--", "--nocapture"], cwd=root / "core")
 sys.exit(run.returncode)
