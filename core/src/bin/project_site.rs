@@ -35,9 +35,31 @@ fn page() -> String {
 <link rel="icon" href="mark.svg" type="image/svg+xml">
 <link rel="manifest" href="app.webmanifest">
 <link rel="stylesheet" href="app.css">
+<script>
+// Pre paint appearance, the same canonical state Hologram OS keeps (holo.theme.v1: palette, immersive,
+// wallpaper) and the same hooks (data-holo-palette, data-holo-immersive, --holo-wallpaper, color-scheme),
+// so the first frame already wears the chosen look. First run: immersive on the curated default.
+(function () {{
+  var root = document.documentElement, s = null;
+  try {{ s = JSON.parse(localStorage.getItem("holo.theme.v1") || "null"); }} catch (e) {{}}
+  if (!s || !("immersive" in s)) {{ s = {{ palette: "dark", immersive: true, wallpaper: "wallpapers/{wall0}" }}; try {{ localStorage.setItem("holo.theme.v1", JSON.stringify(s)); }} catch (e) {{}} }}
+  root.setAttribute("data-holo-palette", s.palette === "light" ? "light" : "dark");
+  root.setAttribute("data-holo-immersive", s.immersive ? "on" : "off");
+  root.style.setProperty("color-scheme", s.palette === "light" ? "light" : "dark");
+  if (s.wallpaper) root.style.setProperty("--holo-wallpaper", "url(" + JSON.stringify(s.wallpaper) + ")");
+}})();
+</script>
 </head>
 <body>
 <a class="mark" href="./" aria-label="freeinference"><img src="mark.svg" alt="" width="22" height="22"></a>
+<button class="appearance" id="appearance" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="{appearance}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+<div class="popover" id="popover" role="dialog" aria-label="{appearance}" hidden>
+  <button class="mode" type="button" data-mode="dark">{dark}</button>
+  <button class="mode" type="button" data-mode="light">{light}</button>
+  <button class="mode" type="button" data-mode="immersive">{immersive}</button>
+  <div class="walls" id="walls">{walls}</div>
+</div>
+<script type="application/json" id="wallpapers">{walls_json}</script>
 <main>
   <h1>{title}</h1>
   <p class="lede">{lede}</p>
@@ -48,6 +70,7 @@ fn page() -> String {
   </form>
   <p class="state mono" id="state"></p>
 </main>
+<p class="credit mono" id="credit"></p>
 <a class="how" href="{repo_url}">{repo}</a>
 <script type="module" src="app.js"></script>
 </body>
@@ -59,6 +82,13 @@ fn page() -> String {
         send = esc(&v.sendLabel),
         repo = esc(&v.repoLabel),
         repo_url = esc(&v.repoUrl),
+        appearance = esc(&v.appearanceLabel),
+        dark = esc(&v.darkLabel),
+        light = esc(&v.lightLabel),
+        immersive = esc(&v.immersiveLabel),
+        wall0 = esc(&v.wallpapers[0].file),
+        walls = v.wallpapers.iter().map(|w| format!(r#"<button class="wall" type="button" data-wall="wallpapers/{}" title="{}" aria-label="{}" style="background-image:url(wallpapers/{})"></button>"#, esc(&w.file), esc(&w.label), esc(&w.label), esc(&w.file))).collect::<Vec<_>>().join(""),
+        walls_json = serde_json::json!(v.wallpapers.iter().map(|w| serde_json::json!({ "file": format!("wallpapers/{}", w.file), "name": w.label, "by": w.author, "byUrl": w.authorUrl })).collect::<Vec<_>>()).to_string().replace("</", "<\\/"),
     );
     h
 }

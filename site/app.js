@@ -113,8 +113,9 @@ function gpuReady() {
     setState(VIEW.loadingLabel); await L.ready();
     const t0 = performance.now();
     const loaded = await L.loadModel(gpuModel, {
-      onStatus: (t) => setState(String(t || "").slice(0, 60)),
-      onProgress: (d, t, w) => setState(t ? `${w || VIEW.loadingLabel} ${Math.round((d / t) * 100)}%` : `${w || VIEW.loadingLabel}`),
+      // The engine's own status strings are for engineers; the page says one plain thing and a number.
+      onStatus: () => setState(VIEW.loadingLabel),
+      onProgress: (d, t) => setState(t ? `${VIEW.loadingLabel} · ${Math.round((d / t) * 100)}%` : VIEW.loadingLabel),
     });
     if (!loaded || !loaded.gpu) throw new Error("model load failed");
     gpuEngine = await E.createEngine(gpuModel, loaded);
@@ -167,7 +168,7 @@ async function turn(messages, body, el) {
   const hit = await lookup(body);
   if (hit.hit) {
     el.textContent = hit.text;
-    chips(el, [{ text: `model ${short(hit.fingerprint.split(";")[0])}`, title: hit.fingerprint }, { text: `receipt ${short(hit.receipt)}`, title: hit.receipt, ok: true }, { text: VIEW.servedLabel, ok: true }, rederiveChip(hit.rec)]);
+    chips(el, [{ text: VIEW.modelLabel, title: hit.fingerprint }, { text: VIEW.servedLabel, title: hit.receipt, ok: true }, rederiveChip(hit.rec)]);
     $("hint").textContent = `${Math.round(performance.now() - t0)} ms · ${VIEW.servedLabel}`;
     return hit.text;
   }
@@ -183,7 +184,7 @@ async function turn(messages, body, el) {
   const rec = await engine.buildReceipt({ promptText, ctxIds: [], turnIds: ids, outIds: res.outIds });
   const receipt = await seal(body, rec, hit.key);
   const used = rec.body["prov:used"] || {};
-  chips(el, [{ text: `model ${short(used["holo:model"])}`, title: used["holo:model"] }, { text: `receipt ${short(receipt)}`, title: receipt }, { text: VIEW.sealedLabel }, rederiveChip(rec)]);
+  chips(el, [{ text: VIEW.modelLabel, title: used["holo:model"] }, { text: VIEW.sealedLabel, title: receipt, ok: true }, rederiveChip(rec)]);
   $("hint").textContent = `${Math.round(performance.now() - started)} ms · ${live(res.stats || {})}`;
   return text;
 }
@@ -201,10 +202,42 @@ $("composer").onsubmit = async (e) => {
   finally { $("send").disabled = false; $("input").focus(); }
 };
 
+// ---- appearance: the same canonical state and hooks Hologram OS keeps (holo.theme.v1; data-holo-palette,
+// data-holo-immersive, --holo-wallpaper, color-scheme). Dark, Light, or Immersive on a curated Unsplash
+// photo, credited as the Unsplash License asks. The pre paint script in index.html applied the saved
+// choice before the first frame; this only changes it.
+const KEY = "holo.theme.v1";
+const WALLS = JSON.parse($("wallpapers").textContent);
+const root = document.documentElement;
+function readTheme() { try { return JSON.parse(localStorage.getItem(KEY) || "null") || {}; } catch (e) { return {}; } }
+function applyTheme(s) {
+  root.setAttribute("data-holo-palette", s.palette === "light" ? "light" : "dark");
+  root.setAttribute("data-holo-immersive", s.immersive ? "on" : "off");
+  root.style.setProperty("color-scheme", s.palette === "light" ? "light" : "dark");
+  if (s.wallpaper) root.style.setProperty("--holo-wallpaper", `url(${JSON.stringify(s.wallpaper)})`);
+  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+  const mode = s.immersive ? "immersive" : s.palette === "light" ? "light" : "dark";
+  for (const b of document.querySelectorAll(".mode")) b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
+  for (const b of document.querySelectorAll(".wall")) b.setAttribute("aria-pressed", String(s.immersive && b.dataset.wall === s.wallpaper));
+  $("walls").classList.toggle("on", !!s.immersive);
+  const w = s.immersive && WALLS.find((x) => x.file === s.wallpaper);
+  $("credit").innerHTML = w && VIEW ? `${VIEW.photoLabel} <strong>${w.name}</strong> ${VIEW.byLabel} <a href="${w.byUrl}" rel="noopener">${w.by}</a> <a href="https://unsplash.com/?utm_source=Hologram_AI&utm_medium=referral" rel="noopener">${VIEW.unsplashLabel}</a>` : "";
+}
+function setMode(mode) {
+  const s = readTheme();
+  if (mode === "immersive") applyTheme({ palette: "dark", immersive: true, wallpaper: s.wallpaper || WALLS[0].file });
+  else applyTheme({ palette: mode, immersive: false, wallpaper: s.wallpaper || WALLS[0].file });
+}
+$("appearance").onclick = (e) => { e.stopPropagation(); const open = $("popover").hidden; $("popover").hidden = !open; $("appearance").setAttribute("aria-expanded", String(open)); };
+document.addEventListener("click", (e) => { if (!$("popover").contains(e.target)) { $("popover").hidden = true; $("appearance").setAttribute("aria-expanded", "false"); } });
+for (const b of document.querySelectorAll(".mode")) b.onclick = () => setMode(b.dataset.mode);
+for (const b of document.querySelectorAll(".wall")) b.onclick = () => applyTheme({ palette: "dark", immersive: true, wallpaper: b.dataset.wall });
+
 // ---- start: the shell is precached for offline, the words come from the verified core
 (async () => {
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   const c = await coreReady(); VIEW = c.run({ op: "view" });
+  applyTheme(readTheme());
   const stored = (await all()).filter((o) => o.kind === "memo").length;
   if (!navigator.gpu) setState(VIEW.noGpuLabel);
   else if (!navigator.onLine) setState(VIEW.offlineLabel, true);

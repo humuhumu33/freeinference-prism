@@ -45,6 +45,9 @@ Served locally from `site/` on this machine's browser pane, then the same files 
 | Repeat after reload | Served from the receipt in 4 ms, while the model was still loading; memo key from the wasm core, address from the holospaces wasm, integrity from the receipt's own `did:holo` |
 | Re-derive | The stored receipt replayed on the GPU: identical |
 | Phone viewport | 375 px wide: no horizontal overflow after the composer row fix; the page paints with the shell alone |
+| Appearance | Immersive by default on a first visit (Alpine Dawn, applied before the first paint from `holo.theme.v1`); Light and Dark switch live from the top right tile and persist; the three vendored photos switch from the popover with the credit line updating |
+| Chips | One row of three: the model by name, sealed or served from the seal, and the check; addresses only in hover titles |
+| Worker cache | A stale `core.wasm` was served once because the precache went through the HTTP cache; the worker now fetches every shell file with `cache: "reload"` at install |
 
 Not measured yet: a second device with a different GPU, and the airplane test with the model already resident (the shell part is by construction; the model part is the engine's device store).
 

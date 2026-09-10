@@ -15,7 +15,9 @@ self.addEventListener("install", (event) => {
     const m = await readManifest();
     if (m.closure !== CLOSURE) throw new Error("manifest closure does not match this worker");
     const cache = await caches.open("shell-" + CLOSURE);
-    await cache.addAll(m.files.map((f) => f.path).concat(["manifest.json"]));
+    // Fetch every shell file fresh at install: the HTTP cache must not hand an older byte into a
+    // closure whose digest says otherwise.
+    await cache.addAll(m.files.map((f) => f.path).concat(["manifest.json"]).map((p) => new Request(p, { cache: "reload" })));
     await self.skipWaiting();
   })());
 });

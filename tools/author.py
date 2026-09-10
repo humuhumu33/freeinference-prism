@@ -103,9 +103,13 @@ decls = [
     inductive("Decision", "Serve", "Execute", "Refuse"),
     # Every visible word of the page. The page is projected from this record by core/src/bin/project-site.rs;
     # no copy is written in HTML. Zero hyphens in any string, as the product's site rule requires.
+    # A curated backdrop: an Unsplash photo vendored with the page, credited as the Unsplash License asks.
+    structure("Wallpaper", file=STRING, label=STRING, author=STRING, authorUrl=STRING),
     structure("View", headline=STRING, lede=STRING, promptPlaceholder=STRING, sendLabel=STRING,
               loadingLabel=STRING, residentLabel=STRING, servedLabel=STRING, sealedLabel=STRING, rederiveLabel=STRING,
-              identicalLabel=STRING, noGpuLabel=STRING, offlineLabel=STRING, repoLabel=STRING, repoUrl=STRING),
+              identicalLabel=STRING, noGpuLabel=STRING, offlineLabel=STRING, repoLabel=STRING, repoUrl=STRING,
+              modelLabel=STRING, appearanceLabel=STRING, darkLabel=STRING, lightLabel=STRING, immersiveLabel=STRING,
+              photoLabel=STRING, byLabel=STRING, unsplashLabel=STRING, wallpapers=lst(named("Wallpaper"))),
 
     # Owned copies of projected strings live in their own record taking definitions: the generator
     # borrows a record parameter and returns an owned string, and a match nested inside a list literal
@@ -157,14 +161,26 @@ decls = [
         sendLabel=s("Ask"),
         loadingLabel=s("getting the model, once"),
         residentLabel=s("ready"),
-        servedLabel=s("instant, from the seal"),
-        sealedLabel=s("sealed on your device"),
-        rederiveLabel=s("check again"),
-        identicalLabel=s("checked, identical"),
+        servedLabel=s("Instant, from the seal"),
+        sealedLabel=s("Sealed"),
+        rederiveLabel=s("Check again"),
+        identicalLabel=s("Checked, identical"),
         noGpuLabel=s("This browser cannot run the model. Try Chrome or Edge on a computer."),
         offlineLabel=s("offline, working from your device"),
         repoLabel=s("How it is built"),
-        repoUrl=s("https://github.com/humuhumu33/freeinference-prism"))),
+        repoUrl=s("https://github.com/humuhumu33/freeinference-prism"),
+        modelLabel=s("BitNet 2B, on your device"),
+        appearanceLabel=s("Appearance"),
+        darkLabel=s("Dark"),
+        lightLabel=s("Light"),
+        immersiveLabel=s("Immersive"),
+        photoLabel=s("Photo"),
+        byLabel=s("by"),
+        unsplashLabel=s("on Unsplash"),
+        wallpapers=cons(record("Wallpaper", file=s("alps.jpg"), label=s("Alpine Dawn"), author=s("Unsplash"), authorUrl=s("https://unsplash.com/?utm_source=Hologram_AI&utm_medium=referral")),
+                   cons(record("Wallpaper", file=s("galaxy.jpg"), label=s("Galaxy"), author=s("Tiago Ferreira"), authorUrl=s("https://unsplash.com/@tiago_f_ferreira?utm_source=Hologram_AI&utm_medium=referral")),
+                   cons(record("Wallpaper", file=s("aurora.jpg"), label=s("Aurora"), author=s("Lightscape"), authorUrl=s("https://unsplash.com/@lightscape?utm_source=Hologram_AI&utm_medium=referral")),
+                   nil(named("Wallpaper"))))))),
     definition("decide", [("hit", BOOL), ("workerAttached", BOOL)], named("Decision"),
         if_(var("hit"), ctor("Decision.Serve"), if_(var("workerAttached"), ctor("Decision.Execute"), ctor("Decision.Refuse")))),
 
