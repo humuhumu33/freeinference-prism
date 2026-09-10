@@ -14,7 +14,7 @@
 
 use crate::{
     admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels,
-    encodeOpenRouterRequest, encodeRole, expertPage, objEntry, preimages, rootPreimage, route, tablePage, view, Completion,
+    encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, objEntry, preimages, rootPreimage, route, tablePage, view, Completion,
     Decision, Manifest, Message, Obj, Provider, Request, Route, Shard,
 };
 use serde_json::{json, Value};
@@ -156,6 +156,12 @@ fn run(input: &[u8]) -> Value {
             );
             json!({ "route": match r { Route::Serve => "Serve", Route::Local => "Local", Route::Paid => "Paid", Route::NoKey => "NoKey", Route::NoGpu => "NoGpu", Route::PaidOffline => "PaidOffline" } })
         }
+        // The endpoint control: shown only when the model says a request could be answered.
+        "endpoint-ready" => json!({ "ready": endpointReady(
+            value["resident"].as_bool().unwrap_or(false),
+            value["keyPresent"].as_bool().unwrap_or(false),
+            value["online"].as_bool().unwrap_or(false),
+        ) }),
         // The bytes OpenRouter receives: only what the model spells, never a key.
         "encode-openrouter-request" => match request(&value["request"]) {
             Ok(request) => json!({ "bytes": encodeOpenRouterRequest(value["model"].as_str().unwrap_or("").to_owned(), &request, value["stream"].as_bool().unwrap_or(false)) }),
@@ -179,6 +185,10 @@ pub fn view_json() -> Value {
         "paidOnceLabel": v.paidOnceLabel, "costLabel": v.costLabel, "freeLabel": v.freeLabel, "noKeyLabel": v.noKeyLabel, "noCreditLabel": v.noCreditLabel,
         "providerBusyLabel": v.providerBusyLabel, "paidOfflineLabel": v.paidOfflineLabel,
         "paidModels": v.paidModels.iter().map(|m| json!({ "id": m.id, "label": m.label })).collect::<Vec<_>>(),
+        "connectLabel": v.connectLabel, "connectedLabel": v.connectedLabel, "listeningLabel": v.listeningLabel, "notConnectedLabel": v.notConnectedLabel,
+        "runLabel": v.runLabel, "verifyLabel": v.verifyLabel, "baseUrlLabel": v.baseUrlLabel, "anyKeyLabel": v.anyKeyLabel, "modelIdLabel": v.modelIdLabel,
+        "testLabel": v.testLabel, "stayOpenLabel": v.stayOpenLabel, "askLabel": v.askLabel, "secondTabLabel": v.secondTabLabel,
+        "copyLabel": v.copyLabel, "copiedLabel": v.copiedLabel, "macLabel": v.macLabel, "windowsLabel": v.windowsLabel,
     })
 }
 

@@ -34,3 +34,5 @@ jobs:
         run: ./scripts/lane.sh
       - name: Byte identity corpus
         run: python3 tools/corpus.py
+      - name: The relay, against a fake tab, a hostile page and a client without a bearer
+        run: python3 tools/relay_test.py

@@ -159,9 +159,57 @@ button.badge:hover { color: var(--foreground); border-color: var(--brand); }
 
 /* Who answers: one switch, two words; the paid side shows a model choice and, once, a key field. */
 .who { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.mode2 { font: inherit; font-size: 13px; padding: 5px 13px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted-foreground); cursor: pointer; }
+.mode2 { font: inherit; font-size: 13px; padding: 5px 13px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted-foreground); cursor: pointer; white-space: nowrap; }
 .mode2[aria-pressed="true"] { color: var(--foreground); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); background: color-mix(in srgb, var(--brand) 8%, transparent); }
 .pick { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); max-width: 60%; }
 .keyrow { display: flex; align-items: center; gap: 13px; margin-bottom: 8px; min-width: 0; }
 .keyrow[hidden], .pick[hidden] { display: none; }
 .key { font: inherit; font-size: 13px; flex: 1 1 auto; min-width: 0; padding: 8px 13px; border-radius: 10px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); }
+
+/* Connect: the pill in the box, and its sheet. The pill appears only when the model says the endpoint
+   could answer (a resident model, or a kept key online). The sheet is the box's own white card, centred,
+   never a section under the box: one state line, one command, the base URL, one snippet, one test. */
+.pill { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 13px; padding: 5px 13px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted-foreground); cursor: pointer; flex: none; }
+.pill:hover, .pill[aria-expanded="true"] { color: var(--foreground); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); }
+.pill[hidden] { display: none; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted-foreground); opacity: 0.45; flex: none; transition: background .3s ease, opacity .3s ease, transform .3s ease; }
+.dot.wait { background: #e0a020; opacity: 1; animation: breathe 1.4s ease-in-out infinite; }
+.dot.on { background: #1fa650; opacity: 1; transform: scale(1.15); }
+@keyframes breathe { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+.scrim { position: fixed; inset: 0; z-index: 4; background: rgba(20, 18, 30, 0.28); }
+.scrim[hidden] { display: none; }
+.sheet {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5;
+  width: min(652px, calc(100vw - 32px)); max-height: min(86vh, 720px); overflow: auto;
+  display: grid; gap: 13px; padding: 21px; background: var(--card); color: var(--foreground);
+  border-radius: var(--radius); border: 1px solid var(--glass-border); box-shadow: 0 21px 55px var(--shadow), 0 2px 5px var(--shadow);
+}
+:root[data-holo-immersive="on"] .sheet { border-color: var(--border); -webkit-backdrop-filter: blur(34px) saturate(1.4); backdrop-filter: blur(34px) saturate(1.4); }
+.sheet[hidden] { display: none; }
+.sheet .state { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 500; }
+.sheet .ask { margin: -5px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.sheet .ask[hidden] { display: none; }
+.sheet .step { display: grid; gap: 6px; }
+.sheet .steph { display: flex; align-items: center; justify-content: space-between; gap: 13px; font-size: 13px; color: var(--muted-foreground); min-width: 0; }
+.sheet .steph > span:first-child { flex: none; white-space: nowrap; }
+.sheet .steph .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
+.sheet .steph.sub { font-size: 12.4px; margin-top: 2px; }
+.sheet .tabs { display: inline-flex; gap: 5px; flex-wrap: wrap; }
+.ostab, .snip { font: inherit; font-size: 12.4px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted-foreground); cursor: pointer; }
+.ostab[aria-pressed="true"], .snip[aria-pressed="true"] { color: var(--foreground); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); background: color-mix(in srgb, var(--brand) 8%, transparent); }
+.cmd { display: flex; align-items: flex-start; gap: 8px; padding: 8px 8px 8px 13px; border-radius: 10px; background: var(--user); min-width: 0; }
+.cmd code, .cmd pre { flex: 1 1 auto; min-width: 0; margin: 0; overflow-x: auto; white-space: pre; line-height: 1.5; padding: 3px 0; scrollbar-width: thin; }
+.copy { font: inherit; font-size: 12.4px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--muted-foreground); cursor: pointer; flex: none; }
+.copy:hover { color: var(--foreground); border-color: var(--brand); }
+.sheet .test { display: flex; align-items: center; gap: 13px; }
+.sheet .foot { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+@media (max-width: 520px) {
+  .sheet { padding: 16px; gap: 10px; }
+  .sheet .steph { flex-wrap: wrap; }
+  /* The box row wraps on a phone: the switch and Connect on one line, the hint and Ask on the next. */
+  .composer .row { flex-wrap: wrap; row-gap: 8px; }
+  .composer .row .hint { flex-basis: 100%; order: 3; }
+  .composer .row .hint:empty { display: none; }
+  .composer .row .btn { order: 2; margin-left: auto; }
+  .who { margin-bottom: 0; }
+}

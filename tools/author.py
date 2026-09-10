@@ -97,6 +97,10 @@ def route_body(hit, provider, gpu, key, online):
         match(provider,
             branch("Provider.Local", [], if_(gpu, ctor("Route.Local"), ctor("Route.NoGpu"))),
             branch("Provider.Paid", [], if_(key, if_(online, ctor("Route.Paid"), ctor("Route.PaidOffline")), ctor("Route.NoKey")))))
+# The endpoint: ready when the local model is resident, or a paid key is kept and the device is online.
+# Written once here so the definition and its theorems share the term.
+def endpoint_body(resident, key, online):
+    return if_(resident, b(True), if_(key, online, b(False)))
 # The bytes OpenRouter receives: only these fields, in this order, nothing else, no key. Usage is asked
 # for so the cost is known; reasoning is off because the product asks for answers, not thinking; only
 # providers that honor every field may answer (measured: one provider ignored the reasoning field and
@@ -179,7 +183,11 @@ decls = [
               wallpapers=lst(named("Wallpaper")),
               localLabel=STRING, paidLabel=STRING, keyLabel=STRING, keyPlaceholder=STRING, keySavedLabel=STRING,
               paidOnceLabel=STRING, costLabel=STRING, freeLabel=STRING, noKeyLabel=STRING, noCreditLabel=STRING,
-              providerBusyLabel=STRING, paidOfflineLabel=STRING, paidModels=lst(named("PaidModel"))),
+              providerBusyLabel=STRING, paidOfflineLabel=STRING, paidModels=lst(named("PaidModel")),
+              connectLabel=STRING, connectedLabel=STRING, listeningLabel=STRING, notConnectedLabel=STRING,
+              runLabel=STRING, verifyLabel=STRING, baseUrlLabel=STRING, anyKeyLabel=STRING, modelIdLabel=STRING,
+              testLabel=STRING, stayOpenLabel=STRING, askLabel=STRING, secondTabLabel=STRING,
+              copyLabel=STRING, copiedLabel=STRING, macLabel=STRING, windowsLabel=STRING),
 
     # Owned copies of projected strings live in their own record taking definitions: the generator
     # borrows a record parameter and returns an owned string, and a match nested inside a list literal
@@ -252,7 +260,13 @@ decls = [
         paidModels=cons(record("PaidModel", id=s("qwen/qwen3.8-flash"), label=s("Qwen 3.8 Flash")),
                    cons(record("PaidModel", id=s("deepseek/deepseek-v4.1-flash"), label=s("DeepSeek V4.1 Flash")),
                    cons(record("PaidModel", id=s("nvidia/nemotron-3.5-lightning:free"), label=s("Nemotron 3.5, free")),
-                   nil(named("PaidModel"))))))),
+                   nil(named("PaidModel"))))),
+        connectLabel=s("Connect"), connectedLabel=s("Connected"), listeningLabel=s("Listening for the relay"),
+        notConnectedLabel=s("Not connected"), runLabel=s("Run this once, on this computer"), verifyLabel=s("Verify the file"),
+        baseUrlLabel=s("Base URL"), anyKeyLabel=s("Any key works, for example local"), modelIdLabel=s("Model"),
+        testLabel=s("Send a test request"), stayOpenLabel=s("Nothing leaves your device. Keep this tab open."),
+        askLabel=s("Your browser may ask to let this page reach your computer."), secondTabLabel=s("Another tab is already serving"),
+        copyLabel=s("Copy"), copiedLabel=s("Copied"), macLabel=s("macOS / Linux"), windowsLabel=s("Windows"))),
     # One answer as the wire sees it: created is a decimal string the adapter spells.
     structure("Completion", id=STRING, created=STRING, model=STRING, text=STRING, fingerprint=STRING, receipt=STRING),
     field_of("Completion", "id"), field_of("Completion", "created"), field_of("Completion", "model"),
@@ -289,6 +303,9 @@ decls = [
         join(strings(s('{"object":"list","data":['), call("modelEntries", var("ids")), s("]}")))),
     definition("route", [("hit", BOOL), ("provider", named("Provider")), ("gpuReady", BOOL), ("keyPresent", BOOL), ("online", BOOL)], named("Route"),
         route_body(var("hit"), var("provider"), var("gpuReady"), var("keyPresent"), var("online"))),
+    # The endpoint control: shown when a request could be answered, resident model or paid key online.
+    definition("endpointReady", [("resident", BOOL), ("keyPresent", BOOL), ("online", BOOL)], BOOL,
+        endpoint_body(var("resident"), var("keyPresent"), var("online"))),
     definition("orMessage", [("message", named("Message"))], STRING,
         join(strings(s('{"role":'), q(call("roleOf", var("message"))), s(',"content":'), q(call("contentOf", var("message"))), s("}")))),
     definition("orMessages", [("messages", lst(named("Message")))], STRING,
@@ -401,6 +418,11 @@ decls = [
     theorem("route_noKey", eq(call("route", b(False), ctor("Provider.Paid"), b(True), b(False), b(True)), ctor("Route.NoKey"))),
     theorem("route_noKeyOffline", eq(call("route", b(False), ctor("Provider.Paid"), b(True), b(False), b(False)), ctor("Route.NoKey"))),
     theorem("route_paidOffline", eq(call("route", b(False), ctor("Provider.Paid"), b(True), b(True), b(False)), ctor("Route.PaidOffline"))),
+    # The endpoint readiness table, every row: a resident model is enough; a key needs the network.
+    theorem("endpointReady_resident", eq(call("endpointReady", b(True), b(False), b(False)), b(True))),
+    theorem("endpointReady_paid", eq(call("endpointReady", b(False), b(True), b(True)), b(True))),
+    theorem("endpointReady_paidOffline", eq(call("endpointReady", b(False), b(True), b(False)), b(False))),
+    theorem("endpointReady_nothing", eq(call("endpointReady", b(False), b(False), b(True)), b(False))),
     theorem("orMessages_empty", eq(call("orMessages", nil(named("Message"))), s(""))),
     theorem("streamText_true", eq(call("streamText", b(True)), s("true"))),
     theorem("encodeOpenRouterRequest_shape",

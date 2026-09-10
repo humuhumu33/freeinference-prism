@@ -9,6 +9,8 @@
 //! The generated code uses owned strings and vectors, so this crate links std.
 
 #![deny(unsafe_code)]
+// The View record is wide; the json! macro that mirrors it field by field needs a deeper macro recursion.
+#![recursion_limit = "256"]
 #![allow(non_snake_case, unused_parens, unused_variables, clippy::all, clippy::pedantic)]
 
 extern crate alloc;

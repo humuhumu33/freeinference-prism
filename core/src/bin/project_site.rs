@@ -77,11 +77,34 @@ fn page() -> String {
         <button class="mode2" type="button" data-provider="paid" aria-pressed="false">{paid}</button>
         <select class="pick" id="paidModel" aria-label="{paid}" hidden>{paid_models}</select>
       </div>
+      <button class="pill" id="connect" type="button" hidden aria-haspopup="dialog" aria-expanded="false"><span class="dot" id="pillDot"></span>{connect}</button>
       <span class="hint mono" id="hint"></span>
       <button class="btn" id="send" type="submit" aria-label="{send}">{send}</button>
     </div>
   </form>
 </main>
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" role="dialog" aria-label="{connect}" hidden>
+  <div class="state"><span class="dot" id="sheetDot"></span><span id="state">{not_connected}</span></div>
+  <p class="ask" id="ask" hidden>{ask}</p>
+  <div class="step">
+    <div class="steph"><span>{run}</span><span class="tabs"><button class="ostab" type="button" data-os="mac" aria-pressed="true">{mac}</button><button class="ostab" type="button" data-os="win" aria-pressed="false">{windows}</button></span></div>
+    <div class="cmd"><code class="mono" id="cmd"></code><button class="copy" type="button" data-copy="cmd">{copy}</button></div>
+    <div class="steph sub"><span>{verify}</span><span class="mono" id="hash"></span></div>
+    <div class="cmd"><code class="mono" id="verifycmd"></code><button class="copy" type="button" data-copy="verifycmd">{copy}</button></div>
+  </div>
+  <div class="step">
+    <div class="steph"><span>{base_url}</span><span class="mono" id="modelId"></span></div>
+    <div class="cmd"><code class="mono" id="baseUrl"></code><button class="copy" type="button" data-copy="baseUrl">{copy}</button></div>
+    <div class="steph sub"><span>{any_key}</span></div>
+  </div>
+  <div class="step">
+    <div class="steph"><span class="tabs" id="snips"></span></div>
+    <div class="cmd"><pre class="mono" id="snippet"></pre><button class="copy" type="button" data-copy="snippet">{copy}</button></div>
+  </div>
+  <div class="step test"><button class="btn" id="test" type="button" disabled>{test}</button><span class="hint mono" id="testOut"></span></div>
+  <p class="foot">{stay_open}</p>
+</section>
 <script type="module" src="app.js"></script>
 </body>
 </html>
@@ -101,6 +124,18 @@ fn page() -> String {
         key_placeholder = esc(&v.keyPlaceholder),
         paid_once = esc(&v.paidOnceLabel),
         paid_models = v.paidModels.iter().map(|m| format!(r#"<option value="{}">{}</option>"#, esc(&m.id), esc(&m.label))).collect::<Vec<_>>().join(""),
+        connect = esc(&v.connectLabel),
+        not_connected = esc(&v.notConnectedLabel),
+        ask = esc(&v.askLabel),
+        run = esc(&v.runLabel),
+        mac = esc(&v.macLabel),
+        windows = esc(&v.windowsLabel),
+        copy = esc(&v.copyLabel),
+        verify = esc(&v.verifyLabel),
+        base_url = esc(&v.baseUrlLabel),
+        any_key = esc(&v.anyKeyLabel),
+        test = esc(&v.testLabel),
+        stay_open = esc(&v.stayOpenLabel),
         walls = v.wallpapers.iter().map(|w| format!(r#"<button class="wall" type="button" data-wall="wallpapers/{}" title="{}" aria-label="{}" style="background-image:url(wallpapers/{})"></button>"#, esc(&w.file), esc(&w.label), esc(&w.label), esc(&w.file))).collect::<Vec<_>>().join(""),
         walls_json = serde_json::json!(v.wallpapers.iter().map(|w| serde_json::json!({ "file": format!("wallpapers/{}", w.file), "name": w.label, "by": w.author, "byUrl": w.authorUrl })).collect::<Vec<_>>()).to_string().replace("</", "<\\/"),
     );
@@ -141,11 +176,12 @@ fn openapi() -> String {
             "title": "freeinference",
             "version": "1",
             "summary": "OpenAI compatible chat completions served from the browser tab that has this page open.",
-            "description": "Every answer carries a receipt (x-hologram-receipt, and hologram.receipt on the last streamed chunk). A repeated request is served from its seal on the device with x-hologram-reuse: 1. On this origin the service worker answers; on a machine, relay/freeinference-relay.py forwards http://127.0.0.1:11435/v1 to the tab. No server computes or stores anything."
+            "description": "Every answer carries a receipt (x-hologram-receipt, and hologram.receipt on the last streamed chunk). A repeated request is served from its seal on the device with x-hologram-reuse: 1. On this origin the service worker answers; on a machine, freeinference-relay.py (served by this page, SHA-256 in manifest.json) forwards http://127.0.0.1:11435/v1 to the tab and requires an Authorization header of any value. No server computes or stores anything."
         },
+        "security": [{ "anyKey": [] }],
         "servers": [
             { "url": "https://humuhumu33.github.io/freeinference-prism/v1", "description": "the page's own origin, answered by the service worker while the page is open" },
-            { "url": "http://127.0.0.1:11435/v1", "description": "the local relay, for native clients such as Hermes and OpenClaw" }
+            { "url": "http://127.0.0.1:11435/v1", "description": "the local relay, freeinference-relay.py from this page, for native clients such as Hermes and OpenClaw" }
         ],
         "paths": {
             "/models": { "get": { "operationId": "listModels", "responses": { "200": { "description": "the resident model", "content": { "application/json": { "example": parse(encodeModels(&["webgpu:BitNet".to_owned()])) } } } } } },
@@ -165,7 +201,7 @@ fn openapi() -> String {
                     "503": { "description": "no page is open, or this browser cannot run the model" }
                 } } }
         },
-        "components": { "schemas": {
+        "components": { "securitySchemes": { "anyKey": { "type": "http", "scheme": "bearer", "description": "any value; the relay needs the header present, never its value" } }, "schemas": {
             "ChatCompletionRequest": { "type": "object", "required": ["messages"], "properties": {
                 "model": { "type": "string", "description": "ignored; the resident model answers" },
                 "messages": { "type": "array", "items": { "type": "object", "required": ["role", "content"], "properties": { "role": { "type": "string" }, "content": { "type": "string" } } } },

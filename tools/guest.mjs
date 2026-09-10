@@ -52,6 +52,11 @@ for (const [hit, provider, gpuReady, keyPresent, online, want] of rows) {
   const got = run({ op: "route", hit, provider, gpuReady, keyPresent, online }).route;
   if (got !== want) { console.error(`guest: route(${hit},${provider},${gpuReady},${keyPresent},${online}) = ${got}, want ${want}`); process.exit(1); }
 }
+const readiness = [[true, false, false, true], [false, true, true, true], [false, true, false, false], [false, false, true, false], [false, false, false, false]];
+for (const [resident, keyPresent, online, want] of readiness) {
+  const got = run({ op: "endpoint-ready", resident, keyPresent, online }).ready;
+  if (got !== want) { console.error(`guest: endpointReady(${resident},${keyPresent},${online}) = ${got}, want ${want}`); process.exit(1); }
+}
 // The κ object through the guest: the real edge0-8b manifest's root preimage, and the page rules.
 const manifest = JSON.parse(readFileSync(new URL("../model/objects/edge0-8b.manifest.json", import.meta.url), "utf8"));
 const preimage = readFileSync(new URL("../model/objects/edge0-8b.preimage.json", import.meta.url), "utf8");
@@ -67,4 +72,4 @@ for (const sh of manifest.shards) {
 }
 if (!run({ op: "admit", listed: [first], kappa: first, derived: first }).admit || run({ op: "admit", listed: [first], kappa: first, derived: "blake3:0" }).admit) { console.error("guest: admit differs"); process.exit(1); }
 console.log(`guest: kappa object preimage ${pre.length} bytes and ${lines} object lines identical through core.wasm; page rules and admit rows hold`);
-console.log(`guest: ${vectors.length} wire vectors, ${checked} encodings byte identical through core.wasm; ${orChecked} OpenRouter request encodings and ${rows.length} route rows identical`);
+console.log(`guest: ${vectors.length} wire vectors, ${checked} encodings byte identical through core.wasm; ${orChecked} OpenRouter request encodings and ${rows.length} route rows and ${readiness.length} readiness rows identical`);

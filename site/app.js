@@ -125,6 +125,7 @@ function gpuReady() {
     if (!loaded || !loaded.gpu) throw new Error("model load failed");
     gpuEngine = await E.createEngine(gpuModel, loaded);
     setState("");
+    refreshConnect();
     return gpuEngine;
   })().catch((err) => { gpuLoading = null; throw err; });
   return gpuLoading;
@@ -383,20 +384,40 @@ navigator.serviceWorker.addEventListener("message", async (event) => {
 });
 
 // Transport 2: the relay. When freeinference-relay.py runs on this machine, this tab serves its
-// jobs: long poll /tab/next, post frames and results back. The tab notices the relay within 10 s.
-const RELAY = "http://127.0.0.1:11435";
-let relayRunning = false;
+// jobs: long poll /tab/next, post frames and results back. The tab presents the token it read
+// through /tab/hello and a custom header on every call, so a page on another origin cannot pose as
+// the tab. The relay is probed only after the visitor pressed Connect once (a public page reaching
+// 127.0.0.1 may make the browser ask), then every 2 s while the sheet is open, every 10 s closed.
+const RELAY_PORT = Number(new URLSearchParams(location.search).get("relay")) || 11435;
+const RELAY = `http://127.0.0.1:${RELAY_PORT}`;
+// One id per browser tab, kept across reloads (sessionStorage is per tab), so a reload reattaches at
+// once instead of waiting out the previous poll as a second tab.
+const TAB_ID = (() => { try { const k = "holo.tab.v1"; let id = sessionStorage.getItem(k); if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random())).replace(/-/g, "").slice(0, 12); sessionStorage.setItem(k, id); } return id; } catch (e) { return String(Math.random()).slice(2, 14); } })();
+const CONNECT = "holo.connect.v1";
+const readConnect = () => { try { return JSON.parse(localStorage.getItem(CONNECT) || "null") || {}; } catch (e) { return {}; } };
+const writeConnect = (c) => { try { localStorage.setItem(CONNECT, JSON.stringify(c)); } catch (e) {} };
+let relayToken = "", relayRunning = false, relayTimer = null, relayState = "off", relaySeen = false, relayOther = "";
+const tabHeaders = () => ({ "X-Freeinference-Tab": relayToken || "hello", "X-Freeinference-Tab-Id": TAB_ID });
+function setRelayState(state, other) {
+  if (state === "connected") relaySeen = true;
+  if (state === relayState && (other || "") === relayOther) return;
+  relayState = state; relayOther = other || ""; paintConnect();
+}
 async function relayLoop() {
   if (relayRunning) return; relayRunning = true;
   try {
     for (;;) {
       let job = null;
       try {
-        const r = await fetch(RELAY + "/tab/next", { cache: "no-store" });
-        if (r.status === 200) job = await r.json(); else if (r.status !== 204) { await sleep(2000); continue; }
-      } catch (e) { setTimeout(relayWatch, 10000); return; }
+        const r = await fetch(RELAY + "/tab/next", { cache: "no-store", headers: tabHeaders() });
+        if (r.status === 200) job = await r.json();
+        else if (r.status === 409) { setRelayState("second", ((await r.json()).serving || "")); await sleep(5000); continue; }
+        else if (r.status === 403) { relayToken = ""; scheduleWatch(2000); return; }
+        else if (r.status !== 204) { await sleep(2000); continue; }
+        setRelayState("connected");
+      } catch (e) { setRelayState("listening"); scheduleWatch(); return; }
       if (!job) continue;
-      const post = (action, payload) => fetch(`${RELAY}/tab/${job.id}/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }).catch(() => {});
+      const post = (action, payload) => fetch(`${RELAY}/tab/${job.id}/${action}`, { method: "POST", headers: { "content-type": "application/json", ...tabHeaders() }, body: JSON.stringify(payload) }).catch(() => {});
       try {
         await coreReady();
         if (job.op === "models") { await post("result", { bytes: modelsBytes(), headers: {} }); continue; }
@@ -410,9 +431,96 @@ async function relayLoop() {
     }
   } finally { relayRunning = false; }
 }
+function scheduleWatch(ms) { clearTimeout(relayTimer); relayTimer = setTimeout(relayWatch, ms ?? (sheetOpen() ? 2000 : 10000)); }
 async function relayWatch() {
-  try { const r = await fetch(RELAY + "/tab/hello", { cache: "no-store" }); if (r.ok) { relayLoop(); return; } } catch (e) {}
-  setTimeout(relayWatch, 10000);
+  if (!readConnect().enabled) return;
+  try {
+    const r = await fetch(RELAY + "/tab/hello", { cache: "no-store", headers: tabHeaders() });
+    // Hello answered with a token: the relay is here and the loop's first poll registers this tab at
+    // once, so the state is connected now; a 409 or a failed poll downgrades it.
+    if (r.ok) { const h = await r.json(); relayToken = h.token || ""; setRelayState("connected"); relayLoop(); return; }
+  } catch (e) {}
+  setRelayState("listening"); scheduleWatch();
+}
+
+// ---- Connect: the pill in the box and its sheet. The pill shows when the model says the endpoint could
+// answer (endpoint-ready: a resident model, or a kept key online). The words are the View's; the
+// commands and snippets are product names and bytes, kept here.
+const sheetOpen = () => !$("sheet").hidden;
+let os = /Windows/i.test(navigator.userAgent) ? "win" : "mac", snip = "python", relayHash = "";
+const RELAY_FILE = new URL("freeinference-relay.py", location.href).href;
+const baseUrl = () => `${RELAY}/v1`;
+const modelId = () => { const w = readWho(); return w.provider === "paid" ? "openrouter/" + (w.model || VIEW.paidModels[0].id) : MODEL_ID; };
+const portEnv = { mac: RELAY_PORT === 11435 ? "" : `FREEINFERENCE_RELAY_PORT=${RELAY_PORT} `, win: RELAY_PORT === 11435 ? "" : `$env:FREEINFERENCE_RELAY_PORT=${RELAY_PORT}; ` };
+const COMMANDS = {
+  mac: { run: () => `curl -fsSLO ${RELAY_FILE} && ${portEnv.mac}python3 freeinference-relay.py`, verify: () => "shasum -a 256 freeinference-relay.py" },
+  win: { run: () => `iwr ${RELAY_FILE} -OutFile freeinference-relay.py; ${portEnv.win}py freeinference-relay.py`, verify: () => "Get-FileHash freeinference-relay.py" },
+};
+const SNIPPETS = [
+  ["python", "Python", () => `from openai import OpenAI\nclient = OpenAI(base_url="${baseUrl()}", api_key="local")\nr = client.chat.completions.create(model="${modelId()}", messages=[{"role": "user", "content": "Hello"}])\nprint(r.choices[0].message.content)`],
+  ["node", "Node", () => `import OpenAI from "openai";\nconst client = new OpenAI({ baseURL: "${baseUrl()}", apiKey: "local" });\nconst r = await client.chat.completions.create({ model: "${modelId()}", messages: [{ role: "user", content: "Hello" }] });\nconsole.log(r.choices[0].message.content);`],
+  ["curl", "curl", () => `curl ${baseUrl()}/chat/completions -H "Authorization: Bearer local" -H "Content-Type: application/json" -d '{"model":"${modelId()}","messages":[{"role":"user","content":"Hello"}]}'`],
+  ["hermes", "Hermes", () => `CUSTOM_BASE_URL=${baseUrl()} CUSTOM_API_KEY=local hermes chat -q "Hello" -m ${modelId()} --provider custom --ignore-rules -t none`],
+  ["openclaw", "OpenClaw", () => `// ~/.openclaw/openclaw.json\n"models": { "providers": { "local": { "baseUrl": "${baseUrl()}", "apiKey": "local", "api": "openai-completions",\n  "models": [{ "id": "${modelId()}", "name": "freeinference, in the browser" }] } } }\n// then: openclaw agent exec --model local/${modelId()} "Hello"`],
+];
+function paintConnect() {
+  if (!VIEW) return;
+  const dot = relayState === "connected" ? "dot on" : relayState === "listening" || relayState === "second" ? "dot wait" : "dot";
+  $("pillDot").className = dot; $("sheetDot").className = dot;
+  $("state").textContent = relayState === "connected" ? `${VIEW.connectedLabel} · 127.0.0.1:${RELAY_PORT}`
+    : relayState === "second" ? `${VIEW.secondTabLabel}${relayOther ? " · " + relayOther : ""}`
+    : relayState === "listening" ? VIEW.listeningLabel : VIEW.notConnectedLabel;
+  $("ask").hidden = !(readConnect().enabled && !relaySeen && relayState !== "connected");
+  $("cmd").textContent = COMMANDS[os].run(); $("verifycmd").textContent = COMMANDS[os].verify();
+  $("hash").textContent = relayHash ? `sha256 ${relayHash}` : ""; $("hash").title = relayHash;
+  $("baseUrl").textContent = baseUrl(); $("modelId").textContent = `${VIEW.modelIdLabel} · ${modelId()}`;
+  $("snippet").textContent = SNIPPETS.find((s) => s[0] === snip)[2]();
+  for (const b of document.querySelectorAll(".ostab")) b.setAttribute("aria-pressed", String(b.dataset.os === os));
+  for (const b of document.querySelectorAll(".snip")) b.setAttribute("aria-pressed", String(b.dataset.snip === snip));
+  $("test").disabled = relayState !== "connected";
+}
+async function refreshConnect() {
+  if (!VIEW) return;
+  const c = await coreReady();
+  const ready = c.run({ op: "endpoint-ready", resident: !!gpuEngine, keyPresent: !!(await keyGet()), online: navigator.onLine }).ready;
+  $("connect").hidden = !ready;
+  if (!ready && sheetOpen()) closeSheet();
+  paintConnect();
+}
+function openSheet() {
+  $("sheet").hidden = false; $("scrim").hidden = false; $("connect").setAttribute("aria-expanded", "true");
+  const c = readConnect(); if (!c.enabled) writeConnect({ ...c, enabled: true, since: Date.now() });
+  if (relayState === "off") setRelayState("listening"); else paintConnect();
+  relayWatch();
+}
+function closeSheet() { $("sheet").hidden = true; $("scrim").hidden = true; $("connect").setAttribute("aria-expanded", "false"); }
+function initConnect() {
+  for (const [id, label] of SNIPPETS) { const b = document.createElement("button"); b.type = "button"; b.className = "snip"; b.dataset.snip = id; b.textContent = label; b.onclick = () => { snip = id; paintConnect(); }; $("snips").appendChild(b); }
+  for (const b of document.querySelectorAll(".ostab")) b.onclick = () => { os = b.dataset.os; paintConnect(); };
+  for (const b of document.querySelectorAll(".copy")) b.onclick = async () => {
+    try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); b.textContent = VIEW.copiedLabel; setTimeout(() => { b.textContent = VIEW.copyLabel; }, 1200); } catch (e) {}
+  };
+  $("connect").onclick = (e) => { e.stopPropagation(); if (sheetOpen()) closeSheet(); else openSheet(); };
+  $("scrim").onclick = closeSheet;
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sheetOpen()) closeSheet(); });
+  // The first proof: one request through the relay, as a harness would send it, answered by this tab.
+  $("test").onclick = async () => {
+    $("test").disabled = true; $("testOut").textContent = "…"; $("testOut").title = "";
+    try {
+      const t0 = performance.now();
+      const r = await fetch(`${baseUrl()}/chat/completions`, { method: "POST", headers: { authorization: "Bearer local", "content-type": "application/json" }, body: JSON.stringify({ model: modelId(), messages: [{ role: "user", content: "Say hello in five words." }], max_tokens: 24 }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error((j.error && j.error.message) || String(r.status));
+      const reuse = r.headers.get("x-hologram-reuse") === "1"; const receipt = r.headers.get("x-hologram-receipt") || "";
+      $("testOut").textContent = `“${j.choices[0].message.content}” · ${Math.round(performance.now() - t0)} ms · ${reuse ? VIEW.servedLabel : VIEW.sealedLabel} · ${short(receipt)}`;
+      $("testOut").title = receipt;
+    } catch (err) { $("testOut").textContent = `Error: ${err.message}`; }
+    finally { $("test").disabled = relayState !== "connected"; }
+  };
+  fetch("manifest.json", { cache: "no-store" }).then((r) => r.json()).then((m) => { const f = (m.files || []).find((x) => x.path === "freeinference-relay.py"); relayHash = f ? f.sha256 : ""; paintConnect(); }).catch(() => {});
+  window.addEventListener("online", refreshConnect); window.addEventListener("offline", refreshConnect);
+  if (readConnect().enabled) relayWatch();
+  refreshConnect();
 }
 
 // ---- appearance: the same canonical state and hooks Hologram OS keeps (holo.theme.v1; data-holo-palette,
@@ -452,6 +560,7 @@ async function applyWho(w) {
   $("paidModel").hidden = !paid; if (paid && w.model) $("paidModel").value = w.model;
   $("keyrow").hidden = !paid || !!(await keyGet());
   $("keyhint").textContent = (await keyGet()) ? VIEW.keySavedLabel : VIEW.paidOnceLabel;
+  refreshConnect();
 }
 for (const b of document.querySelectorAll(".mode2")) b.onclick = () => applyWho({ ...readWho(), provider: b.dataset.provider });
 $("paidModel").onchange = () => applyWho({ ...readWho(), model: $("paidModel").value });
@@ -467,5 +576,5 @@ $("key").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.prevent
   else if (!navigator.onLine) setState(VIEW.offlineLabel);
   window.addEventListener("offline", () => setState(VIEW.offlineLabel));
   if (navigator.gpu) gpuReady().catch((err) => setState(`Error: ${err.message}`));
-  relayWatch();
+  initConnect();
 })();

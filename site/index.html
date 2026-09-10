@@ -52,11 +52,34 @@
         <button class="mode2" type="button" data-provider="paid" aria-pressed="false">Paid</button>
         <select class="pick" id="paidModel" aria-label="Paid" hidden><option value="qwen/qwen3.8-flash">Qwen 3.8 Flash</option><option value="deepseek/deepseek-v4.1-flash">DeepSeek V4.1 Flash</option><option value="nvidia/nemotron-3.5-lightning:free">Nemotron 3.5, free</option></select>
       </div>
+      <button class="pill" id="connect" type="button" hidden aria-haspopup="dialog" aria-expanded="false"><span class="dot" id="pillDot"></span>Connect</button>
       <span class="hint mono" id="hint"></span>
       <button class="btn" id="send" type="submit" aria-label="Ask">Ask</button>
     </div>
   </form>
 </main>
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" role="dialog" aria-label="Connect" hidden>
+  <div class="state"><span class="dot" id="sheetDot"></span><span id="state">Not connected</span></div>
+  <p class="ask" id="ask" hidden>Your browser may ask to let this page reach your computer.</p>
+  <div class="step">
+    <div class="steph"><span>Run this once, on this computer</span><span class="tabs"><button class="ostab" type="button" data-os="mac" aria-pressed="true">macOS / Linux</button><button class="ostab" type="button" data-os="win" aria-pressed="false">Windows</button></span></div>
+    <div class="cmd"><code class="mono" id="cmd"></code><button class="copy" type="button" data-copy="cmd">Copy</button></div>
+    <div class="steph sub"><span>Verify the file</span><span class="mono" id="hash"></span></div>
+    <div class="cmd"><code class="mono" id="verifycmd"></code><button class="copy" type="button" data-copy="verifycmd">Copy</button></div>
+  </div>
+  <div class="step">
+    <div class="steph"><span>Base URL</span><span class="mono" id="modelId"></span></div>
+    <div class="cmd"><code class="mono" id="baseUrl"></code><button class="copy" type="button" data-copy="baseUrl">Copy</button></div>
+    <div class="steph sub"><span>Any key works, for example local</span></div>
+  </div>
+  <div class="step">
+    <div class="steph"><span class="tabs" id="snips"></span></div>
+    <div class="cmd"><pre class="mono" id="snippet"></pre><button class="copy" type="button" data-copy="snippet">Copy</button></div>
+  </div>
+  <div class="step test"><button class="btn" id="test" type="button" disabled>Send a test request</button><span class="hint mono" id="testOut"></span></div>
+  <p class="foot">Nothing leaves your device. Keep this tab open.</p>
+</section>
 <script type="module" src="app.js"></script>
 </body>
 </html>

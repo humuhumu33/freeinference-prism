@@ -11,6 +11,7 @@ encodeFinal
 encodeModels
 encodeOpenRouterRequest
 encodeRole
+endpointReady
 escapeBackslash
 escapeJson
 escapeNewline

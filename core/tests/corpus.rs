@@ -3,7 +3,7 @@
 
 use freeinference_core::{
     admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels,
-    encodeOpenRouterRequest, encodeRole, expertPage, memoMatches, objEntry, preimages, rootPreimage, route, tablePage, Completion,
+    encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, memoMatches, objEntry, preimages, rootPreimage, route, tablePage, Completion,
     Decision, Manifest, Memo, Message, Obj, Provider, Request, Route, Shard,
 };
 use serde_json::Value;
@@ -142,6 +142,17 @@ fn route_serves_hits_and_never_pays_without_a_key() {
     assert_eq!(route(false, Provider::Paid, true, false, true), Route::NoKey);
     assert_eq!(route(false, Provider::Paid, true, false, false), Route::NoKey);
     assert_eq!(route(false, Provider::Paid, true, true, false), Route::PaidOffline);
+}
+
+/// The endpoint readiness table: a resident model is enough; a key needs the network; nothing else is ready.
+#[test]
+fn endpoint_is_ready_with_a_resident_model_or_a_key_online() {
+    assert!(endpointReady(true, false, false));
+    assert!(endpointReady(true, true, true));
+    assert!(endpointReady(false, true, true));
+    assert!(!endpointReady(false, true, false));
+    assert!(!endpointReady(false, false, true));
+    assert!(!endpointReady(false, false, false));
 }
 
 fn text(v: &Value) -> String {

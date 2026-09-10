@@ -27,6 +27,10 @@ lane-write:
 corpus:
     python3 tools/corpus.py
 
+# The relay against a fake tab, a hostile page and a client without a bearer.
+relay-test:
+    python3 tools/relay_test.py
+
 # The only definition of green.
-vv: lane corpus
+vv: lane corpus relay-test
     @echo "vv: green"
