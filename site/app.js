@@ -120,11 +120,11 @@ function gpuReady() {
     const loaded = await L.loadModel(gpuModel, {
       // The engine's own status strings are for engineers; the page says one plain thing and a number.
       onStatus: () => setState(VIEW.loadingLabel),
-      onProgress: (d, t) => setState(t ? `${VIEW.loadingLabel} · ${Math.round((d / t) * 100)}%` : VIEW.loadingLabel),
+      onProgress: (d, t) => { gpuPct = t ? Math.round((d / t) * 100) : null; setState(t ? `${VIEW.loadingLabel} · ${gpuPct}%` : VIEW.loadingLabel); if (gpuPct % 5 === 0) refreshWho(); },
     });
     if (!loaded || !loaded.gpu) throw new Error("model load failed");
     gpuEngine = await E.createEngine(gpuModel, loaded);
-    setState("");
+    setState(""); refreshWho();
     refreshConnect();
     return gpuEngine;
   })().catch((err) => { gpuLoading = null; throw err; });
@@ -573,11 +573,27 @@ for (const b of document.querySelectorAll(".wall")) b.onclick = () => applyTheme
 // One pill, one menu. The pill names who answers now; the menu is the whole list, your device or a
 // paid model, so choosing a model is choosing the provider. No second control.
 function openWhoMenu(open) { $("whoMenu").hidden = !open; $("whoPill").setAttribute("aria-expanded", String(open)); }
+// The indicator: the concise name of the model that answers the next question, and a dot that pulses
+// while the local model loads. Paid: the chosen paid model. Local and resident: the local model. Local
+// and still loading with a key at hand: the warm up model, because that is who answers now.
+let gpuPct = null;
+async function refreshWho() {
+  if (!VIEW) return;
+  const w = readWho(); const paid = w.provider === "paid";
+  const paidLabel = (VIEW.paidModels.find((m) => m.id === (w.model || VIEW.paidModels[0].id)) || VIEW.paidModels[0]).label;
+  const keyed = !!(await keyGet());
+  let name, state, title;
+  if (paid) { name = paidLabel; state = keyed ? "ready" : "off"; title = keyed ? paidLabel : VIEW.noKeyLabel; }
+  else if (gpuEngine) { name = VIEW.localModelName; state = "ready"; title = VIEW.modelLabel; }
+  else if (keyed && navigator.onLine) { name = VIEW.paidModels[0].label; state = "loading"; title = `${VIEW.warmupLabel}${gpuPct != null ? ` · ${gpuPct}%` : ""}`; }
+  else { name = VIEW.localModelName; state = "loading"; title = `${VIEW.loadingWord}${gpuPct != null ? ` · ${gpuPct}%` : ""}`; }
+  $("whoCurrent").textContent = name; $("whoDot").dataset.state = state; $("whoPill").title = title;
+}
 async function applyWho(w) {
   const provider = w.provider === "paid" ? "paid" : "local";
   const model = provider === "paid" ? (w.model || VIEW.paidModels[0].id) : "";
   writeWho({ provider, model });
-  $("whoCurrent").textContent = provider === "paid" ? (VIEW.paidModels.find((m) => m.id === model) || VIEW.paidModels[0]).label : VIEW.localLabel;
+  await refreshWho();
   for (const o of document.querySelectorAll("#whoMenu .opt")) o.setAttribute("aria-selected", String(o.dataset.provider === provider && (provider !== "paid" || o.dataset.model === model)));
   $("keyrow").hidden = !(provider === "paid") || !!(await keyGet());
   $("keyhint").textContent = (await deviceKeyGet()) ? VIEW.keySavedLabel : siteKey ? VIEW.siteKeyLabel : VIEW.paidOnceLabel;

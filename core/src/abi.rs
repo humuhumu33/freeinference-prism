@@ -201,7 +201,7 @@ pub fn view_json() -> Value {
         "wallpapers": v.wallpapers.iter().map(|w| json!({ "file": w.file, "name": w.label, "by": w.author, "byUrl": w.authorUrl })).collect::<Vec<_>>(),
         "localLabel": v.localLabel, "paidLabel": v.paidLabel, "keyLabel": v.keyLabel, "keyPlaceholder": v.keyPlaceholder, "keySavedLabel": v.keySavedLabel,
         "paidOnceLabel": v.paidOnceLabel, "costLabel": v.costLabel, "freeLabel": v.freeLabel, "noKeyLabel": v.noKeyLabel, "noCreditLabel": v.noCreditLabel,
-        "providerBusyLabel": v.providerBusyLabel, "paidOfflineLabel": v.paidOfflineLabel, "warmupLabel": v.warmupLabel, "siteKeyLabel": v.siteKeyLabel,
+        "providerBusyLabel": v.providerBusyLabel, "paidOfflineLabel": v.paidOfflineLabel, "warmupLabel": v.warmupLabel, "siteKeyLabel": v.siteKeyLabel, "localModelName": v.localModelName, "loadingWord": v.loadingWord,
         "paidModels": v.paidModels.iter().map(|m| json!({ "id": m.id, "label": m.label })).collect::<Vec<_>>(),
         "connectLabel": v.connectLabel, "connectedLabel": v.connectedLabel, "listeningLabel": v.listeningLabel, "notConnectedLabel": v.notConnectedLabel,
         "runLabel": v.runLabel, "verifyLabel": v.verifyLabel, "baseUrlLabel": v.baseUrlLabel, "anyKeyLabel": v.anyKeyLabel, "modelIdLabel": v.modelIdLabel,

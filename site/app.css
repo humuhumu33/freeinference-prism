@@ -163,6 +163,10 @@ button.badge:hover { color: var(--foreground); border-color: var(--brand); }
 .who-pill { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; font: inherit; font-size: 13px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--user); color: var(--foreground); cursor: pointer; white-space: nowrap; }
 .who-pill:hover, .who-pill[aria-expanded="true"] { border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); }
 .who-pill #whoCurrent { overflow: hidden; text-overflow: ellipsis; }
+.who-pill .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); }
+.who-pill .dot[data-state="loading"] { animation: pulse 1.2s ease-in-out infinite; }
+.who-pill .dot[data-state="off"] { background: var(--muted-foreground); opacity: 0.5; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 .who-pill .chev { flex: none; opacity: 0.7; transition: transform .2s ease; }
 .who-pill[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .who-menu { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 4; min-width: 200px; max-width: min(280px, 80vw); padding: 5px; display: grid; gap: 2px; border-radius: 13px; border: 1px solid var(--glass-border); background: var(--glass); -webkit-backdrop-filter: blur(34px) saturate(1.4); backdrop-filter: blur(34px) saturate(1.4); box-shadow: 0 13px 34px var(--shadow); }

@@ -73,7 +73,7 @@ fn page() -> String {
     </div>
     <div class="row">
       <div class="who">
-        <button class="who-pill" id="whoPill" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="{local} / {paid}"><span id="whoCurrent">{local}</span><svg class="chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button class="who-pill" id="whoPill" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="{local} / {paid}"><span class="dot" id="whoDot" aria-hidden="true"></span><span id="whoCurrent">{local}</span><svg class="chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="who-menu" id="whoMenu" role="listbox" aria-label="{local} / {paid}" hidden>{who_options}</div>
       </div>
       <button class="pill" id="connect" type="button" hidden aria-haspopup="dialog" aria-expanded="false"><span class="dot" id="pillDot"></span>{connect}</button>
