@@ -1,5 +1,8 @@
 # freeinference-prism
 
+> **Merged into the product.** Since 2026-09-11 this model and its adapters live in [dyad-prism](https://github.com/humuhumu33/dyad-prism), the browser builder, as its Inference and Object modules; the landing page with Immersive, Dark and Light, the local versus paid switch, the Q engine, the seals and the OpenAI compatible endpoint are served from https://humuhumu33.github.io/dyad-prism/. This repository stays as the record of the inference module's own lane and gates.
+
+
 The trust core of [freeinference](https://github.com/humuhumu33/freeinference), "Free verified AI inference.", as one Lean verified model that is projected into Rust and WebAssembly. Nothing in the core is written by hand twice: the daemon and the browser get the same generated code, so a memo key or a canonical byte string is identical on both sides by construction.
 
 ## What is in the model
