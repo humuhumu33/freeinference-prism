@@ -130,6 +130,12 @@ def small_manifest():
                   shards=cons(record("Shard", label=s("a"), bytes=u64(10), sha256=s(""), kappa=s("blake3:aa"), objects=s("blake3:bb")),
                               nil(named("Shard"))))
 
+# Context as κ: the preimage of one KV block's address, written once for the definition and its theorem.
+def kv_preimage(blk):
+    return join(strings(s('{"group":'), prim("format_decimal", STRING, project("group", blk)), s(',"index":'), prim("format_decimal", STRING, project("index", blk)),
+                        s(',"prefix":'), q(call("kvPrefix", blk)), s(',"root":'), q(call("kvRoot", blk)), s("}")))
+def rem(l, r): return prim("remainder", NAT, l, r, nat(0))
+
 # ---- declarations
 def inductive(name, *ctors): return {"constructors": [{"fields": [], "name": c} for c in ctors], "kind": "inductive", "name": name, "parameters": [], "type_parameters": []}
 def structure(name, **fields): return {"fields": [{"name": k, "type": v} for k, v in fields.items()], "kind": "structure", "name": name, "parameters": [], "type_parameters": []}
@@ -183,7 +189,7 @@ decls = [
               wallpapers=lst(named("Wallpaper")),
               localLabel=STRING, paidLabel=STRING, keyLabel=STRING, keyPlaceholder=STRING, keySavedLabel=STRING,
               paidOnceLabel=STRING, costLabel=STRING, freeLabel=STRING, noKeyLabel=STRING, noCreditLabel=STRING,
-              providerBusyLabel=STRING, paidOfflineLabel=STRING, warmupLabel=STRING, siteKeyLabel=STRING, localModelName=STRING, loadingWord=STRING, paidModels=lst(named("PaidModel")),
+              providerBusyLabel=STRING, paidOfflineLabel=STRING, warmupLabel=STRING, siteKeyLabel=STRING, localModelName=STRING, loadingWord=STRING, peakRefusalLabel=STRING, paidModels=lst(named("PaidModel")),
               connectLabel=STRING, connectedLabel=STRING, listeningLabel=STRING, notConnectedLabel=STRING,
               runLabel=STRING, verifyLabel=STRING, baseUrlLabel=STRING, anyKeyLabel=STRING, modelIdLabel=STRING,
               testLabel=STRING, stayOpenLabel=STRING, askLabel=STRING, secondTabLabel=STRING,
@@ -257,7 +263,7 @@ decls = [
         keySavedLabel=s("Key kept on this device"), paidOnceLabel=s("Paid once, then free from the seal"), costLabel=s("Paid"), freeLabel=s("Free"),
         noKeyLabel=s("Add your OpenRouter key to use paid models"), noCreditLabel=s("Your OpenRouter account has no credit"),
         providerBusyLabel=s("That model is busy right now. Try again or pick another"), paidOfflineLabel=s("Paid models need the network"),
-        warmupLabel=s("Answered by OpenRouter while your model loads"), siteKeyLabel=s("Included, paid by this site"), localModelName=s("BitNet 2B"), loadingWord=s("loading"),
+        warmupLabel=s("Answered by OpenRouter while your model loads"), siteKeyLabel=s("Included, paid by this site"), localModelName=s("BitNet 2B"), loadingWord=s("loading"), peakRefusalLabel=s("The larger model needs a desktop with 24 GB of graphics memory"),
         paidModels=cons(record("PaidModel", id=s("qwen/qwen3.8-flash"), label=s("Qwen 3.8 Flash")),
                    cons(record("PaidModel", id=s("deepseek/deepseek-v4.1-flash"), label=s("DeepSeek V4.1 Flash")),
                    cons(record("PaidModel", id=s("nvidia/nemotron-3.5-lightning:free"), label=s("Nemotron 3.5, free")),
@@ -428,6 +434,34 @@ decls = [
     # OpenRouter and told so; without a key, or offline, they wait for the local model.
     definition("warmup", [("localReady", BOOL), ("keyPresent", BOOL), ("online", BOOL)], BOOL,
         if_(var("localReady"), b(False), band(var("keyPresent"), var("online")))),
+    # ---- Kv: context as κ. A block of tokens' KV is a pure function of the model root, the prefix κ,
+    # the layer group and the block index, so it has an address; a turn computes only its new blocks.
+    structure("KvBlock", root=STRING, before=STRING, group=U64, index=U64),
+    definition("kvRoot", [("block", named("KvBlock"))], STRING, owned(project("root", var("block")))),
+    definition("kvPrefix", [("block", named("KvBlock"))], STRING, owned(project("before", var("block")))),
+    definition("kvBlockPreimage", [("block", named("KvBlock"))], STRING, kv_preimage(var("block"))),
+    # The DeltaNet state is checkpointed every `every` blocks; the blocks since the last checkpoint replay.
+    definition("checkpointDue", [("index", NAT), ("every", NAT)], BOOL, equal(rem(var("index"), var("every")), nat(0))),
+    definition("replayBound", [("index", NAT), ("every", NAT)], NAT, rem(var("index"), var("every"))),
+    # The hit: the longest common prefix of the stored path and the prompt's blocks, as block κ lists.
+    definition("hitLength", [("path", lst(STRING)), ("prompt", lst(STRING))], NAT,
+        match(var("path"),
+            branch("List.nil", [], nat(0)),
+            branch("List.cons", ["a", "ra"],
+                match(var("prompt"),
+                    branch("List.nil", [], nat(0)),
+                    branch("List.cons", ["b", "rb"], if_(equal(var("a"), var("b")), add(nat(1), call("hitLength", var("ra"), var("rb"))), nat(0)))))),
+        recursive="path"),
+    # ---- Tier: what a device gets, from a real probe (graphics memory it could bind, OPFS quota), never a guess.
+    inductive("Plan", "Refuse", "Seed", "Bridge", "Peak"),
+    definition("planFor", [("gpuGiB", NAT), ("opfsGiB", NAT)], named("Plan"),
+        if_(band(ble(nat(20), var("gpuGiB")), ble(nat(20), var("opfsGiB"))), ctor("Plan.Peak"),
+            if_(band(ble(nat(2), var("gpuGiB")), ble(nat(1), var("opfsGiB"))), ctor("Plan.Bridge"),
+                if_(ble(nat(1), var("gpuGiB")), ctor("Plan.Seed"), ctor("Plan.Refuse"))))),
+    # ---- Quant: the tier record the pack writer and the loader agree on for Qwen 3.8 Flash.
+    structure("QuantTier", spineBits=U64, expertBits=U64, tableBits=U64, kvBits=U64, profile=STRING),
+    definition("qwen38Tier", [], named("QuantTier"),
+        record("QuantTier", spineBits=u64(4), expertBits=u64(1), tableBits=u64(16), kvBits=u64(4), profile=s("e8-ldlq-v0.2"))),
     definition("decide", [("hit", BOOL), ("workerAttached", BOOL)], named("Decision"),
         if_(var("hit"), ctor("Decision.Serve"), if_(var("workerAttached"), ctor("Decision.Execute"), ctor("Decision.Refuse")))),
 
@@ -520,6 +554,21 @@ decls = [
     theorem("warmup_ready", eq(call("warmup", b(True), b(True), b(True)), b(False))),
     theorem("warmup_noKey", eq(call("warmup", b(False), b(False), b(True)), b(False))),
     theorem("warmup_offline", eq(call("warmup", b(False), b(True), b(False)), b(False))),
+    # Kv, Tier and Quant, every row.
+    theorem("kvBlockPreimage_shape",
+        eq(call("kvBlockPreimage", record("KvBlock", root=s("blake3:r"), before=s("blake3:p"), group=u64(1), index=u64(7))),
+           kv_preimage(record("KvBlock", root=s("blake3:r"), before=s("blake3:p"), group=u64(1), index=u64(7))))),
+    theorem("checkpointDue_shape", eq(call("checkpointDue", nat(16), nat(8)), equal(rem(nat(16), nat(8)), nat(0)))),
+    theorem("replayBound_shape", eq(call("replayBound", nat(13), nat(8)), rem(nat(13), nat(8)))),
+    theorem("hitLength_empty", eq(call("hitLength", nil(STRING), strings(s("a"))), nat(0))),
+    theorem("hitLength_shape",
+        eq(call("hitLength", strings(s("a"), s("b")), strings(s("a"), s("c"))),
+           if_(equal(s("a"), s("a")), add(nat(1), call("hitLength", strings(s("b")), strings(s("c")))), nat(0)))),
+    theorem("planFor_peak", eq(call("planFor", nat(24), nat(40)), ctor("Plan.Peak"))),
+    theorem("planFor_bridge", eq(call("planFor", nat(8), nat(6)), ctor("Plan.Bridge"))),
+    theorem("planFor_seed", eq(call("planFor", nat(1), nat(0)), ctor("Plan.Seed"))),
+    theorem("planFor_refuse", eq(call("planFor", nat(0), nat(0)), ctor("Plan.Refuse"))),
+    theorem("qwen38Tier_shape", eq(project("expertBits", call("qwen38Tier")), u64(1))),
     theorem("decide_serve", eq(call("decide", b(True), b(False)), ctor("Decision.Serve"))),
     theorem("decide_execute", eq(call("decide", b(False), b(True)), ctor("Decision.Execute"))),
     theorem("decide_refuse", eq(call("decide", b(False), b(False)), ctor("Decision.Refuse"))),

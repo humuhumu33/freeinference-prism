@@ -2,7 +2,7 @@
 //! fixed corpus `tools/corpus.py` writes to `model/corpus.json`.
 
 use freeinference_core::{
-    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, firstTokenReady, loaderStart, memoMatches, objEntry, packRank, packed, pageAction, poolAdmit, prefetchOrder, preimages, promote, rootPreimage, route, tablePage, warmup, Admission, Completion, Decision, Manifest, Memo, Message, Obj, PageAction, Priority, Provider, Request, Route, Section, Shard, Source, Staging, Start, Tier,
+    admitPage, checkpointDue, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, firstTokenReady, hitLength, kvBlockPreimage, loaderStart, memoMatches, objEntry, packRank, packed, pageAction, planFor, poolAdmit, prefetchOrder, preimages, promote, qwen38Tier, replayBound, rootPreimage, route, tablePage, warmup, Admission, Completion, Decision, KvBlock, Manifest, Memo, Message, Obj, PageAction, Plan, Priority, Provider, Request, Route, Section, Shard, Source, Staging, Start, Tier,
 };
 use serde_json::Value;
 
@@ -296,4 +296,27 @@ fn warmup_answers_only_while_loading_with_a_key_online() {
     assert!(!warmup(false, false, true));
     assert!(!warmup(false, true, false));
     assert!(!warmup(true, false, false));
+}
+
+/// Context as κ: the session's hit lengths, block preimages, checkpoints and replay bounds through the
+/// generated rules equal the Python restatement; the device plan and the quant tier hold their rows.
+#[test]
+fn kv_session_and_tiers_match() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../model/kv/");
+    let session: Value = serde_json::from_str(&std::fs::read_to_string(format!("{dir}session.json")).expect("session")).unwrap();
+    let every = session["every"].as_u64().unwrap();
+    let list = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_str().unwrap().to_owned()).collect::<Vec<_>>();
+    for t in session["turns"].as_array().unwrap() {
+        let path = list(&t["path"]); let prompt = list(&t["prompt"]);
+        assert_eq!(hitLength(&path, &prompt).unwrap(), t["hit"].as_u64().unwrap(), "hit length on turn {}", t["turn"]);
+        let last = prompt.len() as u64 - 1;
+        let prefix = if prompt.len() > 1 { prompt[prompt.len() - 2].clone() } else { "blake3:0".to_owned() };
+        assert_eq!(kvBlockPreimage(&KvBlock { root: session["root"].as_str().unwrap().to_owned(), before: prefix, group: 0, index: last }), t["preimage_last"].as_str().unwrap());
+        assert_eq!(checkpointDue(last, every), t["checkpoint_due"].as_bool().unwrap());
+        assert_eq!(replayBound(last, every), t["replay"].as_u64().unwrap());
+    }
+    assert_eq!(planFor(24, 40), Plan::Peak); assert_eq!(planFor(19, 40), Plan::Bridge); assert_eq!(planFor(8, 6), Plan::Bridge);
+    assert_eq!(planFor(2, 0), Plan::Seed); assert_eq!(planFor(1, 0), Plan::Seed); assert_eq!(planFor(0, 0), Plan::Refuse);
+    let q = qwen38Tier(); assert_eq!((q.spineBits, q.expertBits, q.tableBits, q.kvBits), (4, 1, 16, 4));
+    println!("kv session: {} turns identical; plan and quant rows hold", session["turns"].as_array().unwrap().len());
 }

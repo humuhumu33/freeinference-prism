@@ -1,5 +1,6 @@
 admitPage
 anyEqual
+checkpointDue
 contentOf
 createdOf
 decide
@@ -21,8 +22,12 @@ expertPage
 fetchSource
 fingerprintOf
 firstTokenReady
+hitLength
 idOf
 intersects
+kvBlockPreimage
+kvPrefix
+kvRoot
 loaderStart
 manifestRepo
 manifestRevision
@@ -45,13 +50,16 @@ pageAction
 pageBytes
 pageStart
 paramsCanonical
+planFor
 poolAdmit
 prefetchOrder
 preimages
 promote
+qwen38Tier
 receiptOf
 renderMessage
 renderPrompt
+replayBound
 roleOf
 rootPreimage
 route

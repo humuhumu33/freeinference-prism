@@ -126,6 +126,34 @@ if trace_path.exists():
     (root / "model" / "traces" / "olmoe-expected.json").write_text(json.dumps({"pages": 1024, "perToken": 128, "tokens": trace.count(-1), "pools": expected}, indent=1) + "\n", encoding="utf-8")
     print("olmoe trace: " + ", ".join(f"{e['capacity']} pages -> {e['hits']} hits / {e['misses']} misses" for e in expected))
 
+# Context as κ: a 12 turn agent style session where every turn appends one or two blocks and turn 9
+# rewrites its last block. Block preimages by the model's rule (canonical JSON, sorted keys), block κ
+# by BLAKE3 of the preimage as the adapter derives it, hit lengths as the longest common prefix.
+import hashlib
+def kv_preimage(root, prefix, group, index):
+    return '{"group":' + str(group) + ',"index":' + str(index) + ',"prefix":' + json.dumps(prefix) + ',"root":' + json.dumps(root) + "}"
+def blake3_hex(text):
+    try:
+        import blake3; return "blake3:" + blake3.blake3(text.encode()).hexdigest()
+    except ImportError:
+        return "sha256:" + hashlib.sha256(text.encode()).hexdigest()   # the digest is the adapter's; the vector pins the preimage
+ROOT = "blake3:7aca5963"; turns = []; path = []; prefix = "blake3:0"; every = 8
+for turn in range(12):
+    new = 2 if turn % 3 == 0 else 1
+    if turn == 9: path = path[:-1]
+    prompt = list(path)
+    for _ in range(new):
+        pre = kv_preimage(ROOT, prefix, 0, len(prompt)); k = blake3_hex(pre); prompt.append(k); prefix = k
+    hit = 0
+    for a, b_ in zip(path, prompt):
+        if a == b_: hit += 1
+        else: break
+    turns.append({"turn": turn, "path": list(path), "prompt": prompt, "hit": hit, "preimage_last": kv_preimage(ROOT, prompt[-2] if len(prompt) > 1 else "blake3:0", 0, len(prompt) - 1), "checkpoint_due": (len(prompt) - 1) % every == 0, "replay": (len(prompt) - 1) % every})
+    path = prompt
+kv_dir = root / "model" / "kv"; kv_dir.mkdir(exist_ok=True)
+(kv_dir / "session.json").write_text(json.dumps({"root": ROOT, "every": every, "turns": turns}, indent=1) + "\n", encoding="utf-8")
+print(f"kv session: {len(turns)} turns, hits " + ",".join(str(t['hit']) for t in turns))
+
 out = root / "model" / "corpus.json"
 out.write_text(json.dumps(cases, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {out}: {len(cases)} cases")

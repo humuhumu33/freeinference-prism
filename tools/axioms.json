@@ -109,6 +109,26 @@
   "Quot.sound",
   "propext"
  ],
+ "kvBlockPreimage": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "kvBlockPreimage_shape": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "kvPrefix": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
+ "kvRoot": [
+  "Classical.choice",
+  "Quot.sound",
+  "propext"
+ ],
  "manifestRepo": [
   "Classical.choice",
   "Quot.sound",

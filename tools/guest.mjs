@@ -58,6 +58,22 @@ for (const [resident, keyPresent, online, want] of readiness) {
   if (got !== want) { console.error(`guest: endpointReady(${resident},${keyPresent},${online}) = ${got}, want ${want}`); process.exit(1); }
 }
 // The κ object through the guest: the real edge0-8b manifest's root preimage, and the page rules.
+// Context as κ through the guest: the session's hit lengths and last preimages, the plan rows, the quant tier.
+{
+  const session = JSON.parse(readFileSync(new URL("../model/kv/session.json", import.meta.url), "utf8"));
+  for (const t of session.turns) {
+    const got = run({ op: "hit-length", path: t.path, prompt: t.prompt }).length;
+    if (got !== t.hit) { console.error(`guest: kv hit length turn ${t.turn}: ${got}, want ${t.hit}`); process.exit(1); }
+    const last = t.prompt.length - 1; const prefix = t.prompt.length > 1 ? t.prompt[t.prompt.length - 2] : "blake3:0";
+    const pre = run({ op: "kv-preimage", root: session.root, prefix, group: 0, index: last }).bytes;
+    if (pre !== t.preimage_last) { console.error(`guest: kv preimage turn ${t.turn} differs`); process.exit(1); }
+    if (run({ op: "checkpoint-due", index: last, every: session.every }).due !== t.checkpoint_due || run({ op: "replay-bound", index: last, every: session.every }).blocks !== t.replay) { console.error(`guest: checkpoint rows turn ${t.turn} differ`); process.exit(1); }
+  }
+  const plans = [[24, 40, "Peak"], [19, 40, "Bridge"], [8, 6, "Bridge"], [2, 0, "Seed"], [0, 0, "Refuse"]];
+  for (const [g, o, want] of plans) { const got = run({ op: "plan-for", gpuGiB: g, opfsGiB: o }).plan; if (got !== want) { console.error(`guest: plan ${g},${o} = ${got}, want ${want}`); process.exit(1); } }
+  const q = run({ op: "quant-tier" }); if (q.expertBits !== 1 || q.spineBits !== 4) { console.error("guest: quant tier differs"); process.exit(1); }
+  console.log(`guest: kv session ${session.turns.length} turns identical through core.wasm; plan and quant rows hold`);
+}
 const ladder = [
   ["warmup", { localReady: false, keyPresent: true, online: true }, "warmup", true], ["warmup", { localReady: true, keyPresent: true, online: true }, "warmup", false], ["warmup", { localReady: false, keyPresent: false, online: true }, "warmup", false], ["warmup", { localReady: false, keyPresent: true, online: false }, "warmup", false],
   ["pack-rank", { section: "header" }, "rank", 0], ["pack-rank", { section: "spine" }, "rank", 2], ["pack-rank", { section: "table" }, "packed", false], ["pack-rank", { section: "expert" }, "packed", true],

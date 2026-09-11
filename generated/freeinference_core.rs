@@ -14,6 +14,14 @@ pub struct Shard {
     pub objects: alloc::string::String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KvBlock {
+    pub root: alloc::string::String,
+    pub before: alloc::string::String,
+    pub group: u64,
+    pub index: u64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Admission {
@@ -61,6 +69,24 @@ pub struct Manifest {
     pub experts: u64,
     pub tableRows: u64,
     pub shards: alloc::vec::Vec<crate::Shard>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QuantTier {
+    pub spineBits: u64,
+    pub expertBits: u64,
+    pub tableBits: u64,
+    pub kvBits: u64,
+    pub profile: alloc::string::String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Plan {
+    Refuse = 0,
+    Seed = 1,
+    Bridge = 2,
+    Peak = 3,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -184,6 +210,7 @@ pub struct View {
     pub siteKeyLabel: alloc::string::String,
     pub localModelName: alloc::string::String,
     pub loadingWord: alloc::string::String,
+    pub peakRefusalLabel: alloc::string::String,
     pub paidModels: alloc::vec::Vec<crate::PaidModel>,
     pub connectLabel: alloc::string::String,
     pub connectedLabel: alloc::string::String,
@@ -253,6 +280,10 @@ pub fn anyEqual(x_1: &[alloc::string::String], x_2: &str) -> bool {
         true => _x_39,
     } },
     }
+}
+
+pub fn checkpointDue(index: u64, every: u64) -> bool {
+    { let _x_4 = 0; { let _x_7 = if every == 0 { _x_4 } else { index % every }; { let _x_8 = (_x_7 == _x_4); _x_8 } } }
 }
 
 pub fn contentOf(message: &crate::Message) -> alloc::string::String {
@@ -387,6 +418,19 @@ pub fn firstTokenReady(spinePresent: bool, promptPagesPresent: bool) -> bool {
     }
 }
 
+pub fn hitLength(x_1: &[alloc::string::String], x_2: &[alloc::string::String]) -> Result<u64, crate::ComputeError> {
+    Ok(match x_1 {
+        [] => { let _x_68 = 0; _x_68 },
+        [head_43, tail_44 @ ..] => match x_2 {
+        [] => { let _x_94 = 0; _x_94 },
+        [head_95, tail_96 @ ..] => { let _x_100 = (head_43 == head_95); match _x_100 {
+        false => { let _x_114 = 0; _x_114 },
+        true => { let _x_115 = 1; { let _x_116 = hitLength(&(tail_44), &(tail_96))?; { let _x_117 = ((_x_115) as u64).checked_add(_x_116).ok_or(crate::ComputeError::AddOverflow)?; _x_117 } } },
+    } },
+    },
+    })
+}
+
 pub fn idOf(value: &crate::Completion) -> alloc::string::String {
     { let _x_8 = &(value).id; { let _x_20 = 2147483647; { let _x_13 = { let __value = _x_8; let __delimiter = alloc::string::String::from("\n"); let __maximum = usize::try_from(_x_20).ok(); if __delimiter.is_empty() { None } else { let __fields: alloc::vec::Vec<alloc::string::String> = __value.split(&__delimiter).map(alloc::string::String::from).collect(); __maximum.filter(|__maximum| __fields.len() <= *__maximum).map(|_| __fields) } }; match _x_13 {
         None => alloc::string::String::from(""),
@@ -402,6 +446,24 @@ pub fn intersects(x_1: &[alloc::string::String], x_2: &[alloc::string::String]) 
         true => _x_35,
     } },
     }
+}
+
+pub fn kvBlockPreimage(block: &crate::KvBlock) -> alloc::string::String {
+    { let _x_5 = (block).group; { let _x_6 = alloc::format!("{}", _x_5); { let _x_8 = (block).index; { let _x_9 = alloc::format!("{}", _x_8); { let _x_12 = kvPrefix(&(block)); { let _x_13 = escapeJson(_x_12); { let _x_15 = alloc::vec![alloc::string::String::from("\"")]; { let _x_16 = { let mut __list = alloc::vec![_x_13]; __list.extend(_x_15.clone()); __list }; { let _x_17 = { let mut __list = alloc::vec![alloc::string::String::from("\"")]; __list.extend(_x_16); __list }; { let _x_19 = (_x_17).join(&alloc::string::String::from("")); { let _x_21 = kvRoot(&(block)); { let _x_22 = escapeJson(_x_21); { let _x_23 = { let mut __list = alloc::vec![_x_22]; __list.extend(_x_15.clone()); __list }; { let _x_24 = { let mut __list = alloc::vec![alloc::string::String::from("\"")]; __list.extend(_x_23); __list }; { let _x_25 = (_x_24).join(&alloc::string::String::from("")); { let _x_27 = alloc::vec![alloc::string::String::from("}")]; { let _x_28 = { let mut __list = alloc::vec![_x_25]; __list.extend(_x_27); __list }; { let _x_29 = { let mut __list = alloc::vec![alloc::string::String::from(",\"root\":")]; __list.extend(_x_28); __list }; { let _x_30 = { let mut __list = alloc::vec![_x_19]; __list.extend(_x_29); __list }; { let _x_31 = { let mut __list = alloc::vec![alloc::string::String::from(",\"prefix\":")]; __list.extend(_x_30); __list }; { let _x_32 = { let mut __list = alloc::vec![_x_9]; __list.extend(_x_31); __list }; { let _x_33 = { let mut __list = alloc::vec![alloc::string::String::from(",\"index\":")]; __list.extend(_x_32); __list }; { let _x_34 = { let mut __list = alloc::vec![_x_6]; __list.extend(_x_33); __list }; { let _x_35 = { let mut __list = alloc::vec![alloc::string::String::from("{\"group\":")]; __list.extend(_x_34); __list }; { let _x_36 = (_x_35).join(&alloc::string::String::from("")); _x_36 } } } } } } } } } } } } } } } } } } } } } } } } }
+}
+
+pub fn kvPrefix(block: &crate::KvBlock) -> alloc::string::String {
+    { let _x_8 = &(block).before; { let _x_20 = 2147483647; { let _x_13 = { let __value = _x_8; let __delimiter = alloc::string::String::from("\n"); let __maximum = usize::try_from(_x_20).ok(); if __delimiter.is_empty() { None } else { let __fields: alloc::vec::Vec<alloc::string::String> = __value.split(&__delimiter).map(alloc::string::String::from).collect(); __maximum.filter(|__maximum| __fields.len() <= *__maximum).map(|_| __fields) } }; match _x_13 {
+        None => alloc::string::String::from(""),
+        Some(val_16) => { let _x_25 = (val_16).join(&alloc::string::String::from("\n")); _x_25 },
+    } } } }
+}
+
+pub fn kvRoot(block: &crate::KvBlock) -> alloc::string::String {
+    { let _x_8 = &(block).root; { let _x_20 = 2147483647; { let _x_13 = { let __value = _x_8; let __delimiter = alloc::string::String::from("\n"); let __maximum = usize::try_from(_x_20).ok(); if __delimiter.is_empty() { None } else { let __fields: alloc::vec::Vec<alloc::string::String> = __value.split(&__delimiter).map(alloc::string::String::from).collect(); __maximum.filter(|__maximum| __fields.len() <= *__maximum).map(|_| __fields) } }; match _x_13 {
+        None => alloc::string::String::from(""),
+        Some(val_16) => { let _x_25 = (val_16).join(&alloc::string::String::from("\n")); _x_25 },
+    } } } }
 }
 
 pub fn loaderStart(shellOnDevice: bool, snapshotOnDevice: bool) -> crate::Start {
@@ -564,6 +626,49 @@ pub fn paramsCanonical(request: &crate::Request) -> alloc::string::String {
     { let _x_2 = (request).maxTokens; { let _x_3 = optionalDecimal(_x_2); { let _x_5 = (request).seed; { let _x_6 = optionalDecimal(_x_5); { let _x_8 = temperatureText(&(request)); { let _x_11 = alloc::vec![alloc::string::String::from("}")]; { let _x_12 = { let mut __list = alloc::vec![_x_8]; __list.extend(_x_11); __list }; { let _x_13 = { let mut __list = alloc::vec![alloc::string::String::from(",\"temperature\":")]; __list.extend(_x_12); __list }; { let _x_14 = { let mut __list = alloc::vec![_x_6]; __list.extend(_x_13); __list }; { let _x_15 = { let mut __list = alloc::vec![alloc::string::String::from(",\"seed\":")]; __list.extend(_x_14); __list }; { let _x_16 = { let mut __list = alloc::vec![_x_3]; __list.extend(_x_15); __list }; { let _x_17 = { let mut __list = alloc::vec![alloc::string::String::from("{\"max_tokens\":")]; __list.extend(_x_16); __list }; { let _x_19 = (_x_17).join(&alloc::string::String::from("")); _x_19 } } } } } } } } } } } } }
 }
 
+pub fn planFor(gpuGiB: u64, opfsGiB: u64) -> crate::Plan {
+    { let _x_10 = 20; { let _x_13 = (_x_10 <= gpuGiB); { let _jp_63 = /* jp "_jp_63" inlined at its jump site */ (); match _x_13 {
+        false => { let _y_18 = _x_13; match _y_18 {
+        false => { let _x_181 = 2; { let _x_182 = (_x_181 <= gpuGiB); { let _jp_183 = /* jp "_jp_183" inlined at its jump site */ (); match _x_182 {
+        false => { let _y_184 = _x_182; match _y_184 {
+        false => { let _x_193 = 1; { let _x_194 = (_x_193 <= gpuGiB); match _x_194 {
+        false => { let _x_195 = crate::Plan::Refuse; _x_195 },
+        true => { let _x_196 = crate::Plan::Seed; _x_196 },
+    } } },
+        true => { let _x_190 = crate::Plan::Bridge; _x_190 },
+    } },
+        true => { let _x_191 = 1; { let _x_192 = (_x_191 <= opfsGiB); { let _y_184 = _x_192; match _y_184 {
+        false => { let _x_193 = 1; { let _x_194 = (_x_193 <= gpuGiB); match _x_194 {
+        false => { let _x_195 = crate::Plan::Refuse; _x_195 },
+        true => { let _x_196 = crate::Plan::Seed; _x_196 },
+    } } },
+        true => { let _x_190 = crate::Plan::Bridge; _x_190 },
+    } } } },
+    } } } },
+        true => { let _x_178 = crate::Plan::Peak; _x_178 },
+    } },
+        true => { let _x_179 = 20; { let _x_180 = (_x_179 <= opfsGiB); { let _y_18 = _x_180; match _y_18 {
+        false => { let _x_181 = 2; { let _x_182 = (_x_181 <= gpuGiB); { let _jp_183 = /* jp "_jp_183" inlined at its jump site */ (); match _x_182 {
+        false => { let _y_184 = _x_182; match _y_184 {
+        false => { let _x_193 = 1; { let _x_194 = (_x_193 <= gpuGiB); match _x_194 {
+        false => { let _x_195 = crate::Plan::Refuse; _x_195 },
+        true => { let _x_196 = crate::Plan::Seed; _x_196 },
+    } } },
+        true => { let _x_190 = crate::Plan::Bridge; _x_190 },
+    } },
+        true => { let _x_191 = 1; { let _x_192 = (_x_191 <= opfsGiB); { let _y_184 = _x_192; match _y_184 {
+        false => { let _x_193 = 1; { let _x_194 = (_x_193 <= gpuGiB); match _x_194 {
+        false => { let _x_195 = crate::Plan::Refuse; _x_195 },
+        true => { let _x_196 = crate::Plan::Seed; _x_196 },
+    } } },
+        true => { let _x_190 = crate::Plan::Bridge; _x_190 },
+    } } } },
+    } } } },
+        true => { let _x_178 = crate::Plan::Peak; _x_178 },
+    } } } },
+    } } } }
+}
+
 pub fn poolAdmit(present: bool, spaceLeft: bool) -> crate::Admission {
     match present {
         false => match spaceLeft {
@@ -601,6 +706,10 @@ pub fn promote(current: crate::Tier, largeResident: bool, largeFast: bool) -> cr
     }
 }
 
+pub fn qwen38Tier() -> crate::QuantTier {
+    { let _x_12 = 4; { let _x_14 = 1; { let _x_16 = 16; { let _x_11 = crate::QuantTier { spineBits: _x_12, expertBits: _x_14, tableBits: _x_16, kvBits: _x_12, profile: alloc::string::String::from("e8-ldlq-v0.2") }; _x_11 } } } }
+}
+
 pub fn receiptOf(value: &crate::Completion) -> alloc::string::String {
     { let _x_8 = &(value).receipt; { let _x_20 = 2147483647; { let _x_13 = { let __value = _x_8; let __delimiter = alloc::string::String::from("\n"); let __maximum = usize::try_from(_x_20).ok(); if __delimiter.is_empty() { None } else { let __fields: alloc::vec::Vec<alloc::string::String> = __value.split(&__delimiter).map(alloc::string::String::from).collect(); __maximum.filter(|__maximum| __fields.len() <= *__maximum).map(|_| __fields) } }; match _x_13 {
         None => alloc::string::String::from(""),
@@ -620,6 +729,10 @@ pub fn renderPrompt(x_1: &[crate::Message]) -> alloc::string::String {
         [head_50, tail_51 @ ..] => { let head_50 = head_50.clone(); { let _x_53 = renderMessage(&(head_29)); { let _x_54 = renderPrompt(&(tail_30)); { let _x_56 = alloc::vec![_x_54]; { let _x_57 = { let mut __list = alloc::vec![_x_53]; __list.extend(_x_56); __list }; { let _x_59 = (_x_57).join(&alloc::string::String::from("\n")); _x_59 } } } } } },
     },
     }
+}
+
+pub fn replayBound(index: u64, every: u64) -> u64 {
+    { let _x_2 = 0; { let _x_5 = if every == 0 { _x_2 } else { index % every }; _x_5 } }
 }
 
 pub fn roleOf(message: &crate::Message) -> alloc::string::String {
@@ -758,7 +871,7 @@ pub fn textOf(value: &crate::Completion) -> alloc::string::String {
 }
 
 pub fn view() -> crate::View {
-    { let _x_21 = crate::Wallpaper { file: alloc::string::String::from("alps.jpg"), label: alloc::string::String::from("Alpine Dawn"), author: alloc::string::String::from("Unsplash"), authorUrl: alloc::string::String::from("https://unsplash.com/?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_26 = crate::Wallpaper { file: alloc::string::String::from("galaxy.jpg"), label: alloc::string::String::from("Galaxy"), author: alloc::string::String::from("Tiago Ferreira"), authorUrl: alloc::string::String::from("https://unsplash.com/@tiago_f_ferreira?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_31 = crate::Wallpaper { file: alloc::string::String::from("aurora.jpg"), label: alloc::string::String::from("Aurora"), author: alloc::string::String::from("Lightscape"), authorUrl: alloc::string::String::from("https://unsplash.com/@lightscape?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_33 = alloc::vec![_x_31]; { let _x_34 = { let mut __list = alloc::vec![_x_26]; __list.extend(_x_33); __list }; { let _x_35 = { let mut __list = alloc::vec![_x_21]; __list.extend(_x_34); __list }; { let _x_53 = crate::PaidModel { id: alloc::string::String::from("qwen/qwen3.8-flash"), label: alloc::string::String::from("Qwen 3.8 Flash") }; { let _x_56 = crate::PaidModel { id: alloc::string::String::from("deepseek/deepseek-v4.1-flash"), label: alloc::string::String::from("DeepSeek V4.1 Flash") }; { let _x_59 = crate::PaidModel { id: alloc::string::String::from("nvidia/nemotron-3.5-lightning:free"), label: alloc::string::String::from("Nemotron 3.5, free") }; { let _x_61 = alloc::vec![_x_59]; { let _x_62 = { let mut __list = alloc::vec![_x_56]; __list.extend(_x_61); __list }; { let _x_63 = { let mut __list = alloc::vec![_x_53]; __list.extend(_x_62); __list }; { let _x_81 = crate::View { headline: alloc::string::String::from("Own Your Ideas"), lede: alloc::string::String::from("Seamlessly build, run, share and earn from your serverless AI applications."), promptPlaceholder: alloc::string::String::from("Ask anything"), sendLabel: alloc::string::String::from("Ask"), loadingLabel: alloc::string::String::from("getting the model, once"), servedLabel: alloc::string::String::from("Instant, from the seal"), sealedLabel: alloc::string::String::from("Sealed"), rederiveLabel: alloc::string::String::from("Check again"), identicalLabel: alloc::string::String::from("Checked, identical"), noGpuLabel: alloc::string::String::from("This browser cannot run the model. Try Chrome or Edge on a computer."), offlineLabel: alloc::string::String::from("offline, working from your device"), modelLabel: alloc::string::String::from("BitNet 2B, on your device"), appearanceLabel: alloc::string::String::from("Appearance"), darkLabel: alloc::string::String::from("Dark"), lightLabel: alloc::string::String::from("Light"), immersiveLabel: alloc::string::String::from("Immersive"), wallpapers: _x_35, localLabel: alloc::string::String::from("On your device"), paidLabel: alloc::string::String::from("Paid"), keyLabel: alloc::string::String::from("OpenRouter key"), keyPlaceholder: alloc::string::String::from("Paste your OpenRouter key"), keySavedLabel: alloc::string::String::from("Key kept on this device"), paidOnceLabel: alloc::string::String::from("Paid once, then free from the seal"), costLabel: alloc::string::String::from("Paid"), freeLabel: alloc::string::String::from("Free"), noKeyLabel: alloc::string::String::from("Add your OpenRouter key to use paid models"), noCreditLabel: alloc::string::String::from("Your OpenRouter account has no credit"), providerBusyLabel: alloc::string::String::from("That model is busy right now. Try again or pick another"), paidOfflineLabel: alloc::string::String::from("Paid models need the network"), warmupLabel: alloc::string::String::from("Answered by OpenRouter while your model loads"), siteKeyLabel: alloc::string::String::from("Included, paid by this site"), localModelName: alloc::string::String::from("BitNet 2B"), loadingWord: alloc::string::String::from("loading"), paidModels: _x_63, connectLabel: alloc::string::String::from("Connect"), connectedLabel: alloc::string::String::from("Connected"), listeningLabel: alloc::string::String::from("Listening for the relay"), notConnectedLabel: alloc::string::String::from("Not connected"), runLabel: alloc::string::String::from("Run this once, on this computer"), verifyLabel: alloc::string::String::from("Verify the file"), baseUrlLabel: alloc::string::String::from("Base URL"), anyKeyLabel: alloc::string::String::from("Any key works, for example local"), modelIdLabel: alloc::string::String::from("Model"), testLabel: alloc::string::String::from("Send a test request"), stayOpenLabel: alloc::string::String::from("Nothing leaves your device. Keep this tab open."), askLabel: alloc::string::String::from("Your browser may ask to let this page reach your computer."), secondTabLabel: alloc::string::String::from("Another tab is already serving"), copyLabel: alloc::string::String::from("Copy"), copiedLabel: alloc::string::String::from("Copied"), macLabel: alloc::string::String::from("macOS / Linux"), windowsLabel: alloc::string::String::from("Windows") }; _x_81 } } } } } } } } } } } } }
+    { let _x_21 = crate::Wallpaper { file: alloc::string::String::from("alps.jpg"), label: alloc::string::String::from("Alpine Dawn"), author: alloc::string::String::from("Unsplash"), authorUrl: alloc::string::String::from("https://unsplash.com/?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_26 = crate::Wallpaper { file: alloc::string::String::from("galaxy.jpg"), label: alloc::string::String::from("Galaxy"), author: alloc::string::String::from("Tiago Ferreira"), authorUrl: alloc::string::String::from("https://unsplash.com/@tiago_f_ferreira?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_31 = crate::Wallpaper { file: alloc::string::String::from("aurora.jpg"), label: alloc::string::String::from("Aurora"), author: alloc::string::String::from("Lightscape"), authorUrl: alloc::string::String::from("https://unsplash.com/@lightscape?utm_source=Hologram_AI&utm_medium=referral") }; { let _x_33 = alloc::vec![_x_31]; { let _x_34 = { let mut __list = alloc::vec![_x_26]; __list.extend(_x_33); __list }; { let _x_35 = { let mut __list = alloc::vec![_x_21]; __list.extend(_x_34); __list }; { let _x_54 = crate::PaidModel { id: alloc::string::String::from("qwen/qwen3.8-flash"), label: alloc::string::String::from("Qwen 3.8 Flash") }; { let _x_57 = crate::PaidModel { id: alloc::string::String::from("deepseek/deepseek-v4.1-flash"), label: alloc::string::String::from("DeepSeek V4.1 Flash") }; { let _x_60 = crate::PaidModel { id: alloc::string::String::from("nvidia/nemotron-3.5-lightning:free"), label: alloc::string::String::from("Nemotron 3.5, free") }; { let _x_62 = alloc::vec![_x_60]; { let _x_63 = { let mut __list = alloc::vec![_x_57]; __list.extend(_x_62); __list }; { let _x_64 = { let mut __list = alloc::vec![_x_54]; __list.extend(_x_63); __list }; { let _x_82 = crate::View { headline: alloc::string::String::from("Own Your Ideas"), lede: alloc::string::String::from("Seamlessly build, run, share and earn from your serverless AI applications."), promptPlaceholder: alloc::string::String::from("Ask anything"), sendLabel: alloc::string::String::from("Ask"), loadingLabel: alloc::string::String::from("getting the model, once"), servedLabel: alloc::string::String::from("Instant, from the seal"), sealedLabel: alloc::string::String::from("Sealed"), rederiveLabel: alloc::string::String::from("Check again"), identicalLabel: alloc::string::String::from("Checked, identical"), noGpuLabel: alloc::string::String::from("This browser cannot run the model. Try Chrome or Edge on a computer."), offlineLabel: alloc::string::String::from("offline, working from your device"), modelLabel: alloc::string::String::from("BitNet 2B, on your device"), appearanceLabel: alloc::string::String::from("Appearance"), darkLabel: alloc::string::String::from("Dark"), lightLabel: alloc::string::String::from("Light"), immersiveLabel: alloc::string::String::from("Immersive"), wallpapers: _x_35, localLabel: alloc::string::String::from("On your device"), paidLabel: alloc::string::String::from("Paid"), keyLabel: alloc::string::String::from("OpenRouter key"), keyPlaceholder: alloc::string::String::from("Paste your OpenRouter key"), keySavedLabel: alloc::string::String::from("Key kept on this device"), paidOnceLabel: alloc::string::String::from("Paid once, then free from the seal"), costLabel: alloc::string::String::from("Paid"), freeLabel: alloc::string::String::from("Free"), noKeyLabel: alloc::string::String::from("Add your OpenRouter key to use paid models"), noCreditLabel: alloc::string::String::from("Your OpenRouter account has no credit"), providerBusyLabel: alloc::string::String::from("That model is busy right now. Try again or pick another"), paidOfflineLabel: alloc::string::String::from("Paid models need the network"), warmupLabel: alloc::string::String::from("Answered by OpenRouter while your model loads"), siteKeyLabel: alloc::string::String::from("Included, paid by this site"), localModelName: alloc::string::String::from("BitNet 2B"), loadingWord: alloc::string::String::from("loading"), peakRefusalLabel: alloc::string::String::from("The larger model needs a desktop with 24 GB of graphics memory"), paidModels: _x_64, connectLabel: alloc::string::String::from("Connect"), connectedLabel: alloc::string::String::from("Connected"), listeningLabel: alloc::string::String::from("Listening for the relay"), notConnectedLabel: alloc::string::String::from("Not connected"), runLabel: alloc::string::String::from("Run this once, on this computer"), verifyLabel: alloc::string::String::from("Verify the file"), baseUrlLabel: alloc::string::String::from("Base URL"), anyKeyLabel: alloc::string::String::from("Any key works, for example local"), modelIdLabel: alloc::string::String::from("Model"), testLabel: alloc::string::String::from("Send a test request"), stayOpenLabel: alloc::string::String::from("Nothing leaves your device. Keep this tab open."), askLabel: alloc::string::String::from("Your browser may ask to let this page reach your computer."), secondTabLabel: alloc::string::String::from("Another tab is already serving"), copyLabel: alloc::string::String::from("Copy"), copiedLabel: alloc::string::String::from("Copied"), macLabel: alloc::string::String::from("macOS / Linux"), windowsLabel: alloc::string::String::from("Windows") }; _x_82 } } } } } } } } } } } } }
 }
 
 pub fn warmup(localReady: bool, keyPresent: bool, online: bool) -> bool {
