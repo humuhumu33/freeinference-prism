@@ -146,7 +146,12 @@ function gpuIds(engine, messages) {
 const WHO = "holo.inference.v1";
 function readWho() { try { return JSON.parse(localStorage.getItem(WHO) || "null") || { provider: "local", model: "" }; } catch (e) { return { provider: "local", model: "" }; } }
 function writeWho(w) { try { localStorage.setItem(WHO, JSON.stringify(w)); } catch (e) {} }
-async function keyGet() { const o = await get("openrouter-key"); return o && o.value ? String(o.value) : ""; }
+// The site may include a key of its own (site/warmup.json, written at deploy time from a secret, never in
+// the repository): it counts as a key for the route and warm up rules, the visitor's own key wins over it.
+let siteKey = "";
+async function siteKeyReady() { try { const r = await fetch("warmup.json", { cache: "no-store" }); if (r.ok) { const j = await r.json(); siteKey = String(j.key || ""); } } catch (e) {} return siteKey; }
+async function deviceKeyGet() { const o = await get("openrouter-key"); return o && o.value ? String(o.value) : ""; }
+async function keyGet() { return (await deviceKeyGet()) || siteKey; }
 async function keySet(value) {
   const d = await db();
   await new Promise((res, rej) => { const t = d.transaction("objects", "readwrite"); t.objectStore("objects").put({ id: "openrouter-key", kind: "secret", value, created: Date.now() }); t.oncomplete = res; t.onerror = () => rej(t.error); });
@@ -575,7 +580,7 @@ async function applyWho(w) {
   $("whoCurrent").textContent = provider === "paid" ? (VIEW.paidModels.find((m) => m.id === model) || VIEW.paidModels[0]).label : VIEW.localLabel;
   for (const o of document.querySelectorAll("#whoMenu .opt")) o.setAttribute("aria-selected", String(o.dataset.provider === provider && (provider !== "paid" || o.dataset.model === model)));
   $("keyrow").hidden = !(provider === "paid") || !!(await keyGet());
-  $("keyhint").textContent = (await keyGet()) ? VIEW.keySavedLabel : VIEW.paidOnceLabel;
+  $("keyhint").textContent = (await deviceKeyGet()) ? VIEW.keySavedLabel : siteKey ? VIEW.siteKeyLabel : VIEW.paidOnceLabel;
   refreshConnect();
 }
 $("whoPill").onclick = (e) => { e.stopPropagation(); openWhoMenu($("whoMenu").hidden); };
@@ -589,6 +594,7 @@ $("key").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.prevent
 (async () => {
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   const c = await coreReady(); VIEW = c.run({ op: "view" });
+  await siteKeyReady();
   applyTheme(readTheme()); applyWho(readWho());
   if (!navigator.gpu) setState(VIEW.noGpuLabel);
   else if (!navigator.onLine) setState(VIEW.offlineLabel);

@@ -35,6 +35,11 @@ jobs:
         run: ./scripts/lane.sh
       - name: Byte identity corpus and shell hash check
         run: python3 tools/corpus.py
+      - name: The site's included OpenRouter key, from the repository secret, never from the tree
+        if: ${{ env.KEY != '' }}
+        env:
+          KEY: ${{ secrets.OPENROUTER_WARMUP_KEY }}
+        run: python3 -c "import json,os;json.dump({'key':os.environ['KEY'],'model':'qwen/qwen3.8-flash'},open('site/warmup.json','w'))"
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: site
