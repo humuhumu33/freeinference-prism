@@ -58,6 +58,14 @@ for (const [resident, keyPresent, online, want] of readiness) {
   if (got !== want) { console.error(`guest: endpointReady(${resident},${keyPresent},${online}) = ${got}, want ${want}`); process.exit(1); }
 }
 // The κ object through the guest: the real edge0-8b manifest's root preimage, and the page rules.
+const pool = [
+  ["page-action", { resident: true, staging: "true-routing" }, "action", "Bind"], ["page-action", { resident: false, staging: "true-routing" }, "action", "Fetch"], ["page-action", { resident: false, staging: "staged-replace" }, "action", "Drop"],
+  ["pool-admit", { present: true, spaceLeft: false }, "admission", "Touch"], ["pool-admit", { present: false, spaceLeft: true }, "admission", "Insert"], ["pool-admit", { present: false, spaceLeft: false }, "admission", "EvictThenInsert"],
+  ["fetch-source", { onDevice: true, onMirror: true, peerFaster: true }, "source", "Device"], ["fetch-source", { onDevice: false, onMirror: true, peerFaster: true }, "source", "Peer"], ["fetch-source", { onDevice: false, onMirror: true, peerFaster: false }, "source", "Mirror"], ["fetch-source", { onDevice: false, onMirror: false, peerFaster: false }, "source", "Nowhere"],
+  ["prefetch-order", { predicted: true, popular: false }, "priority", "First"], ["prefetch-order", { predicted: false, popular: true }, "priority", "Fill"], ["prefetch-order", { predicted: false, popular: false }, "priority", "Skip"],
+];
+for (const [op, input, key, want] of pool) { const got = run({ op, ...input })[key]; if (got !== want) { console.error(`guest: ${op} ${JSON.stringify(input)} = ${got}, want ${want}`); process.exit(1); } }
+console.log(`guest: ${pool.length} pool and stage rows identical through core.wasm`);
 for (const name of ["qwen38-flash-next"]) {
   const mf = JSON.parse(readFileSync(new URL(`../model/objects/${name}.manifest.json`, import.meta.url), "utf8"));
   const want = readFileSync(new URL(`../model/objects/${name}.preimage.json`, import.meta.url), "utf8");

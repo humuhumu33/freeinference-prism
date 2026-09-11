@@ -2,9 +2,7 @@
 //! fixed corpus `tools/corpus.py` writes to `model/corpus.json`.
 
 use freeinference_core::{
-    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels,
-    encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, memoMatches, objEntry, preimages, rootPreimage, route, tablePage, Completion,
-    Decision, Manifest, Memo, Message, Obj, Provider, Request, Route, Shard,
+    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, memoMatches, objEntry, pageAction, poolAdmit, prefetchOrder, preimages, rootPreimage, route, tablePage, Admission, Completion, Decision, Manifest, Memo, Message, Obj, PageAction, Priority, Provider, Request, Route, Shard, Source, Staging,
 };
 use serde_json::Value;
 
@@ -225,4 +223,26 @@ fn expert_and_table_pages_tile_their_tensors() {
 fn page_arithmetic_refuses_overflow_instead_of_wrapping() {
     assert!(expertPage(u64::MAX - 1, 80, 4, 3).is_err());
     assert!(tablePage(u64::MAX - 1, u64::MAX, 2, 3, 1).is_err());
+}
+
+/// The pool and stage tables, every row, as the theorems state them.
+#[test]
+fn pool_and_stage_tables_hold_on_every_row() {
+    assert_eq!(pageAction(true, Staging::TrueRouting), PageAction::Bind);
+    assert_eq!(pageAction(true, Staging::StagedReplace), PageAction::Bind);
+    assert_eq!(pageAction(false, Staging::TrueRouting), PageAction::Fetch);
+    assert_eq!(pageAction(false, Staging::StagedReplace), PageAction::Drop);
+    assert_eq!(poolAdmit(true, false), Admission::Touch);
+    assert_eq!(poolAdmit(true, true), Admission::Touch);
+    assert_eq!(poolAdmit(false, true), Admission::Insert);
+    assert_eq!(poolAdmit(false, false), Admission::EvictThenInsert);
+    assert_eq!(fetchSource(true, true, true), Source::Device);
+    assert_eq!(fetchSource(false, true, true), Source::Peer);
+    assert_eq!(fetchSource(false, false, true), Source::Peer);
+    assert_eq!(fetchSource(false, true, false), Source::Mirror);
+    assert_eq!(fetchSource(false, false, false), Source::Nowhere);
+    assert_eq!(prefetchOrder(true, true), Priority::First);
+    assert_eq!(prefetchOrder(true, false), Priority::First);
+    assert_eq!(prefetchOrder(false, true), Priority::Fill);
+    assert_eq!(prefetchOrder(false, false), Priority::Skip);
 }

@@ -102,6 +102,12 @@ Words: the switch, the key field, the paid model names, the cost chip and every 
 | Qwen3.8-Flash-Next, off the wire | 131 shards, 360 GB, about 2.5 hours at 6 to 40 MB/s per stream with four streams: 1,658 tensor κ, 50,176 expert page κ, 5,000,064 table page κ (320 KiB pages), root `blake3:7aca5963…` over a 40,117 byte manifest; the manifest and its preimage are corpus vectors (`model/objects/qwen38-flash-next*`), the 856 MB of object lists live outside git |
 | This GPU through WebGPU | a 1 GiB storage buffer read in 6 ms, 195 GB/s, against the Q engine's 25 to 30 GB/s effective on BitNet: the spine kernel headroom |
 
+## Measured, the pool and stage tables, 2026-09-11
+
+The streaming expert pool's rules, as edge0 runs them, as closed decision tables with one theorem per row (attestation `2ad0ac62…`, 139 declarations): `pageAction(resident, staging)` (a resident page binds; a miss is a fetch under true routing and a drop under staged replace), `poolAdmit(present, spaceLeft)` (touch, insert, evict then insert), `fetchSource(onDevice, onMirror, peerFaster)` (device, then a faster peer, then a mirror, else nowhere), `prefetchOrder(predicted, popular)` (a predicted page first, a popular one to fill, else skip). Fourteen theorems; 17 rows through the crate and 13 through the guest. The list bookkeeping (which κ sits in which slot) is the adapter's; the decisions are not.
+
+A note on the lane: after a WSL restart the Windows mounted checkout refuses `lexlean verify`'s publish step with `EACCES` (DrvFs without metadata), while a WSL native copy verifies the same module. `scripts/lane-native.sh` mirrors the tree, runs the lane there and copies the artifacts back.
+
 ## Planted defect
 
 The params key order swapped in the model (`temperature` before `seed` in `tools/author.py`, regenerated, lane run with `LANE_WRITE=1`):

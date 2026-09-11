@@ -158,9 +158,15 @@ button.badge:hover { color: var(--foreground); border-color: var(--brand); }
 }
 
 /* Who answers: one switch, two words; the paid side shows a model choice and, once, a key field. */
-.who { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.mode2 { font: inherit; font-size: 13px; padding: 5px 13px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted-foreground); cursor: pointer; white-space: nowrap; }
-.mode2[aria-pressed="true"] { color: var(--foreground); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); background: color-mix(in srgb, var(--brand) 8%, transparent); }
+.who { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-width: 0; }
+/* One switch, two positions: a single track with a thumb that slides and resizes to the active
+   side (its width is set in app.js, so the wide and the short label both fit). Both words stay
+   legible; the moving thumb is the whole affordance. */
+.switch { position: relative; display: inline-flex; padding: 3px; border-radius: 999px; border: 1px solid var(--border); background: var(--user); }
+.switch .seg { position: relative; z-index: 1; font: inherit; font-size: 13px; padding: 5px 13px; border: 0; border-radius: 999px; background: transparent; color: var(--muted-foreground); cursor: pointer; white-space: nowrap; transition: color .25s ease; }
+.switch .seg[aria-checked="true"] { color: var(--foreground); }
+.switch .thumb { position: absolute; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 999px; background: color-mix(in srgb, var(--brand) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--brand) 45%, var(--border)); box-shadow: 0 1px 3px var(--shadow); }
+.switch.ready .thumb { transition: transform .28s cubic-bezier(.4, 0, .2, 1), width .28s cubic-bezier(.4, 0, .2, 1); }
 .pick { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); max-width: 60%; }
 .keyrow { display: flex; align-items: center; gap: 13px; margin-bottom: 8px; min-width: 0; }
 .keyrow[hidden], .pick[hidden] { display: none; }

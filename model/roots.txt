@@ -18,6 +18,7 @@ escapeNewline
 escapeQuote
 escapeReturn
 expertPage
+fetchSource
 fingerprintOf
 idOf
 intersects
@@ -36,9 +37,12 @@ objLabel
 optionalDecimal
 orMessage
 orMessages
+pageAction
 pageBytes
 pageStart
 paramsCanonical
+poolAdmit
+prefetchOrder
 preimages
 receiptOf
 renderMessage

@@ -62,6 +62,10 @@ The box has one switch with two words from the View: on your device, and paid. L
 
 `model/` also carries the first κ object built with this model's addressing rule (`Range`, `Obj`, `Shard`, `Manifest`; `expertPage`, `tablePage`, `objEntry`, `rootPreimage`, `admitPage`): edge0's 8B mixture of experts checkpoint, 1,550 tensor κs and 26,496 expert page κs derived straight off the wire with nothing stored by `HOLOGRAM/tools/kappa_object.py`. Every tensor is a κ over its bytes; every expert of every layer is a page κ over its rows; every fixed page of an n gram table would be a page κ; each shard's object list is its own κ object, one line per object as `objEntry` spells it; the manifest names them and the root is BLAKE3 over `rootPreimage`, the canonical JSON the model produces. The corpus feeds the real manifest and all 28,046 object lines through the crate and the wasm guest and refuses any drift; a page binds only if `admitPage` says the root lists it and the bytes derive it. The page arithmetic is checked: an overflow is a refusal, never a wrapped address.
 
+## The pool: the streaming expert pool's rules, verified
+
+The next object the page will stream is a mixture of experts whose pages page in and out of a pool. Its rules are in the model as decision tables, one theorem per row: what happens to a routed page (`pageAction`: bind if resident, fetch on a miss under true routing, drop on a miss under staged replace), how the pool admits (`poolAdmit`: touch, insert, evict then insert), where a missing page comes from (`fetchSource`: the device store, a faster peer, a mirror, nowhere) and what the prefetcher pulls next (`prefetchOrder`: a predicted page first, a popular one to fill). The bookkeeping of slots is transport; the decisions are the model's.
+
 ## What is generated
 
 `scripts/lane.sh` replays the whole lane from the committed tree, on Linux:

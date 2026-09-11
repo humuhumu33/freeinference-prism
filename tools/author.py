@@ -381,6 +381,27 @@ decls = [
     # A page binds only if the root lists its κ and the bytes derive that κ.
     definition("admitPage", [("listed", lst(STRING)), ("kappa", STRING), ("derived", STRING)], BOOL,
         band(call("anyEqual", var("listed"), owned(var("kappa"))), equal(var("kappa"), var("derived")))),
+    # ---- Pool and Stage: the streaming expert pool's rules, as edge0 runs them, in verified form.
+    # TrueRouting: the router decides and a page missing from the slots is fetched before the step.
+    # StagedReplace: the prerouter's prediction is the routing, and a missing page is dropped (the overflow row).
+    inductive("Staging", "TrueRouting", "StagedReplace"),
+    inductive("PageAction", "Bind", "Fetch", "Drop"),
+    definition("pageAction", [("resident", BOOL), ("staging", named("Staging"))], named("PageAction"),
+        if_(var("resident"), ctor("PageAction.Bind"),
+            match(var("staging"), branch("Staging.TrueRouting", [], ctor("PageAction.Fetch")), branch("Staging.StagedReplace", [], ctor("PageAction.Drop"))))),
+    # Admission into the LRU pool: a present page is touched, a free slot takes a new page, else the oldest is evicted first.
+    inductive("Admission", "Touch", "Insert", "EvictThenInsert"),
+    definition("poolAdmit", [("present", BOOL), ("spaceLeft", BOOL)], named("Admission"),
+        if_(var("present"), ctor("Admission.Touch"), if_(var("spaceLeft"), ctor("Admission.Insert"), ctor("Admission.EvictThenInsert")))),
+    # Where a missing page comes from: the device store first, then a peer when it is faster, then a mirror, else nowhere.
+    inductive("Source", "Device", "Peer", "Mirror", "Nowhere"),
+    definition("fetchSource", [("onDevice", BOOL), ("onMirror", BOOL), ("peerFaster", BOOL)], named("Source"),
+        if_(var("onDevice"), ctor("Source.Device"),
+            if_(var("peerFaster"), ctor("Source.Peer"), if_(var("onMirror"), ctor("Source.Mirror"), ctor("Source.Nowhere"))))),
+    # What the prefetcher pulls next: a predicted page first, a popular page to fill, nothing otherwise.
+    inductive("Priority", "First", "Fill", "Skip"),
+    definition("prefetchOrder", [("predicted", BOOL), ("popular", BOOL)], named("Priority"),
+        if_(var("predicted"), ctor("Priority.First"), if_(var("popular"), ctor("Priority.Fill"), ctor("Priority.Skip")))),
     definition("decide", [("hit", BOOL), ("workerAttached", BOOL)], named("Decision"),
         if_(var("hit"), ctor("Decision.Serve"), if_(var("workerAttached"), ctor("Decision.Execute"), ctor("Decision.Refuse")))),
 
@@ -439,6 +460,21 @@ decls = [
     theorem("admitPage_shape",
         eq(call("admitPage", strings(s("blake3:a")), s("blake3:a"), s("blake3:b")),
            band(call("anyEqual", strings(s("blake3:a")), owned(s("blake3:a"))), equal(s("blake3:a"), s("blake3:b"))))),
+    # The pool and stage tables, every row.
+    theorem("pageAction_residentTrue", eq(call("pageAction", b(True), ctor("Staging.TrueRouting")), ctor("PageAction.Bind"))),
+    theorem("pageAction_residentStaged", eq(call("pageAction", b(True), ctor("Staging.StagedReplace")), ctor("PageAction.Bind"))),
+    theorem("pageAction_missTrue", eq(call("pageAction", b(False), ctor("Staging.TrueRouting")), ctor("PageAction.Fetch"))),
+    theorem("pageAction_missStaged", eq(call("pageAction", b(False), ctor("Staging.StagedReplace")), ctor("PageAction.Drop"))),
+    theorem("poolAdmit_present", eq(call("poolAdmit", b(True), b(False)), ctor("Admission.Touch"))),
+    theorem("poolAdmit_space", eq(call("poolAdmit", b(False), b(True)), ctor("Admission.Insert"))),
+    theorem("poolAdmit_full", eq(call("poolAdmit", b(False), b(False)), ctor("Admission.EvictThenInsert"))),
+    theorem("fetchSource_device", eq(call("fetchSource", b(True), b(True), b(True)), ctor("Source.Device"))),
+    theorem("fetchSource_peer", eq(call("fetchSource", b(False), b(True), b(True)), ctor("Source.Peer"))),
+    theorem("fetchSource_mirror", eq(call("fetchSource", b(False), b(True), b(False)), ctor("Source.Mirror"))),
+    theorem("fetchSource_nowhere", eq(call("fetchSource", b(False), b(False), b(False)), ctor("Source.Nowhere"))),
+    theorem("prefetchOrder_predicted", eq(call("prefetchOrder", b(True), b(False)), ctor("Priority.First"))),
+    theorem("prefetchOrder_popular", eq(call("prefetchOrder", b(False), b(True)), ctor("Priority.Fill"))),
+    theorem("prefetchOrder_skip", eq(call("prefetchOrder", b(False), b(False)), ctor("Priority.Skip"))),
     theorem("decide_serve", eq(call("decide", b(True), b(False)), ctor("Decision.Serve"))),
     theorem("decide_execute", eq(call("decide", b(False), b(True)), ctor("Decision.Execute"))),
     theorem("decide_refuse", eq(call("decide", b(False), b(False)), ctor("Decision.Refuse"))),

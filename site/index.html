@@ -47,9 +47,12 @@
       <span class="hint mono" id="keyhint">Paid once, then free from the seal</span>
     </div>
     <div class="row">
-      <div class="who" role="radiogroup" aria-label="On your device / Paid">
-        <button class="mode2" type="button" data-provider="local" aria-pressed="true">On your device</button>
-        <button class="mode2" type="button" data-provider="paid" aria-pressed="false">Paid</button>
+      <div class="who">
+        <div class="switch" id="who" role="radiogroup" aria-label="On your device / Paid">
+          <span class="thumb" id="whoThumb" aria-hidden="true"></span>
+          <button class="seg" type="button" role="radio" data-provider="local" aria-checked="true">On your device</button>
+          <button class="seg" type="button" role="radio" data-provider="paid" aria-checked="false">Paid</button>
+        </div>
         <select class="pick" id="paidModel" aria-label="Paid" hidden><option value="qwen/qwen3.8-flash">Qwen 3.8 Flash</option><option value="deepseek/deepseek-v4.1-flash">DeepSeek V4.1 Flash</option><option value="nvidia/nemotron-3.5-lightning:free">Nemotron 3.5, free</option></select>
       </div>
       <button class="pill" id="connect" type="button" hidden aria-haspopup="dialog" aria-expanded="false"><span class="dot" id="pillDot"></span>Connect</button>

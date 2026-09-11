@@ -14,6 +14,14 @@ pub struct Shard {
     pub objects: alloc::string::String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Admission {
+    Touch = 0,
+    Insert = 1,
+    EvictThenInsert = 2,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Request {
     pub model: alloc::string::String,
@@ -27,6 +35,15 @@ pub struct Request {
 pub struct Message {
     pub role: alloc::string::String,
     pub content: alloc::string::String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Source {
+    Device = 0,
+    Peer = 1,
+    Mirror = 2,
+    Nowhere = 3,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,6 +64,14 @@ pub struct Obj {
     pub bytes: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PageAction {
+    Bind = 0,
+    Fetch = 1,
+    Drop = 2,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Preimages {
     pub prompt: alloc::vec::Vec<u8>,
@@ -62,6 +87,13 @@ pub enum Route {
     NoKey = 3,
     NoGpu = 4,
     PaidOffline = 5,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Staging {
+    TrueRouting = 0,
+    StagedReplace = 1,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,6 +114,14 @@ pub struct Memo {
     pub paramsKappa: alloc::string::String,
     pub outputKappa: alloc::string::String,
     pub receipt: alloc::string::String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Priority {
+    First = 0,
+    Fill = 1,
+    Skip = 2,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -291,6 +331,19 @@ pub fn expertPage(start: u64, length: u64, experts: u64, expert: u64) -> Result<
     Ok({ let _x_5 = stride(length, experts); { let _x_6 = ((expert) as u64).checked_mul(_x_5).ok_or(crate::ComputeError::MulOverflow)?; { let _x_21 = ((start) as u64).checked_add(_x_6).ok_or(crate::ComputeError::AddOverflow)?; { let _x_8 = 1; { let _x_26 = ((expert) as u64).checked_add(_x_8).ok_or(crate::ComputeError::AddOverflow)?; { let _x_12 = ((_x_26) as u64).checked_mul(_x_5).ok_or(crate::ComputeError::MulOverflow)?; { let _x_30 = ((start) as u64).checked_add(_x_12).ok_or(crate::ComputeError::AddOverflow)?; { let _x_14 = crate::Range { start: _x_21, stop: _x_30 }; _x_14 } } } } } } } })
 }
 
+pub fn fetchSource(onDevice: bool, onMirror: bool, peerFaster: bool) -> crate::Source {
+    match onDevice {
+        false => match peerFaster {
+        false => match onMirror {
+        false => { let _x_100 = crate::Source::Nowhere; _x_100 },
+        true => { let _x_101 = crate::Source::Mirror; _x_101 },
+    },
+        true => { let _x_99 = crate::Source::Peer; _x_99 },
+    },
+        true => { let _x_95 = crate::Source::Device; _x_95 },
+    }
+}
+
 pub fn fingerprintOf(value: &crate::Completion) -> alloc::string::String {
     { let _x_8 = &(value).fingerprint; { let _x_20 = 2147483647; { let _x_13 = { let __value = _x_8; let __delimiter = alloc::string::String::from("\n"); let __maximum = usize::try_from(_x_20).ok(); if __delimiter.is_empty() { None } else { let __fields: alloc::vec::Vec<alloc::string::String> = __value.split(&__delimiter).map(alloc::string::String::from).collect(); __maximum.filter(|__maximum| __fields.len() <= *__maximum).map(|_| __fields) } }; match _x_13 {
         None => alloc::string::String::from(""),
@@ -426,6 +479,16 @@ pub fn orMessages(x_1: &[crate::Message]) -> alloc::string::String {
     }
 }
 
+pub fn pageAction(resident: bool, staging: crate::Staging) -> crate::PageAction {
+    match resident {
+        false => match staging {
+        crate::Staging::TrueRouting => { let _x_40 = crate::PageAction::Fetch; _x_40 },
+        crate::Staging::StagedReplace => { let _x_41 = crate::PageAction::Drop; _x_41 },
+    },
+        true => { let _x_39 = crate::PageAction::Bind; _x_39 },
+    }
+}
+
 pub fn pageBytes(rowBytes: u64, rows: u64) -> Result<u64, crate::ComputeError> {
     Ok({ let _x_2 = ((rowBytes) as u64).checked_mul(rows).ok_or(crate::ComputeError::MulOverflow)?; _x_2 })
 }
@@ -436,6 +499,26 @@ pub fn pageStart(start: u64, rowBytes: u64, rows: u64, index: u64) -> Result<u64
 
 pub fn paramsCanonical(request: &crate::Request) -> alloc::string::String {
     { let _x_2 = (request).maxTokens; { let _x_3 = optionalDecimal(_x_2); { let _x_5 = (request).seed; { let _x_6 = optionalDecimal(_x_5); { let _x_8 = temperatureText(&(request)); { let _x_11 = alloc::vec![alloc::string::String::from("}")]; { let _x_12 = { let mut __list = alloc::vec![_x_8]; __list.extend(_x_11); __list }; { let _x_13 = { let mut __list = alloc::vec![alloc::string::String::from(",\"temperature\":")]; __list.extend(_x_12); __list }; { let _x_14 = { let mut __list = alloc::vec![_x_6]; __list.extend(_x_13); __list }; { let _x_15 = { let mut __list = alloc::vec![alloc::string::String::from(",\"seed\":")]; __list.extend(_x_14); __list }; { let _x_16 = { let mut __list = alloc::vec![_x_3]; __list.extend(_x_15); __list }; { let _x_17 = { let mut __list = alloc::vec![alloc::string::String::from("{\"max_tokens\":")]; __list.extend(_x_16); __list }; { let _x_19 = (_x_17).join(&alloc::string::String::from("")); _x_19 } } } } } } } } } } } } }
+}
+
+pub fn poolAdmit(present: bool, spaceLeft: bool) -> crate::Admission {
+    match present {
+        false => match spaceLeft {
+        false => { let _x_55 = crate::Admission::EvictThenInsert; _x_55 },
+        true => { let _x_56 = crate::Admission::Insert; _x_56 },
+    },
+        true => { let _x_54 = crate::Admission::Touch; _x_54 },
+    }
+}
+
+pub fn prefetchOrder(predicted: bool, popular: bool) -> crate::Priority {
+    match predicted {
+        false => match popular {
+        false => { let _x_55 = crate::Priority::Skip; _x_55 },
+        true => { let _x_56 = crate::Priority::Fill; _x_56 },
+    },
+        true => { let _x_54 = crate::Priority::First; _x_54 },
+    }
 }
 
 pub fn preimages(request: &crate::Request) -> crate::Preimages {

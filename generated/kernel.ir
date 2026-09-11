@@ -5,21 +5,31 @@
 
   (type "PrismFreeinference.Freeinference.Shard" (ctor "PrismFreeinference.Freeinference.Shard.mk" (label String) (bytes UInt64) (sha256 String) (kappa String) (objects String)))
 
+  (type "PrismFreeinference.Freeinference.Admission" (ctor "PrismFreeinference.Freeinference.Admission.Touch") (ctor "PrismFreeinference.Freeinference.Admission.Insert") (ctor "PrismFreeinference.Freeinference.Admission.EvictThenInsert"))
+
   (type "PrismFreeinference.Freeinference.Request" (ctor "PrismFreeinference.Freeinference.Request.mk" (model String) (messages (List (named "PrismFreeinference.Freeinference.Message"))) (maxTokens (Option UInt64)) (seed (Option UInt64)) (temperature String)))
 
   (type "PrismFreeinference.Freeinference.Message" (ctor "PrismFreeinference.Freeinference.Message.mk" (role String) (content String)))
+
+  (type "PrismFreeinference.Freeinference.Source" (ctor "PrismFreeinference.Freeinference.Source.Device") (ctor "PrismFreeinference.Freeinference.Source.Peer") (ctor "PrismFreeinference.Freeinference.Source.Mirror") (ctor "PrismFreeinference.Freeinference.Source.Nowhere"))
 
   (type "PrismFreeinference.Freeinference.Manifest" (ctor "PrismFreeinference.Freeinference.Manifest.mk" (spec String) (repo String) (revision String) (experts UInt64) (tableRows UInt64) (shards (List (named "PrismFreeinference.Freeinference.Shard")))))
 
   (type "PrismFreeinference.Freeinference.Obj" (ctor "PrismFreeinference.Freeinference.Obj.mk" (kind String) (label String) (kappa String) (bytes UInt64)))
 
+  (type "PrismFreeinference.Freeinference.PageAction" (ctor "PrismFreeinference.Freeinference.PageAction.Bind") (ctor "PrismFreeinference.Freeinference.PageAction.Fetch") (ctor "PrismFreeinference.Freeinference.PageAction.Drop"))
+
   (type "PrismFreeinference.Freeinference.Preimages" (ctor "PrismFreeinference.Freeinference.Preimages.mk" (prompt Bytes) (params Bytes)))
 
   (type "PrismFreeinference.Freeinference.Route" (ctor "PrismFreeinference.Freeinference.Route.Serve") (ctor "PrismFreeinference.Freeinference.Route.Local") (ctor "PrismFreeinference.Freeinference.Route.Paid") (ctor "PrismFreeinference.Freeinference.Route.NoKey") (ctor "PrismFreeinference.Freeinference.Route.NoGpu") (ctor "PrismFreeinference.Freeinference.Route.PaidOffline"))
 
+  (type "PrismFreeinference.Freeinference.Staging" (ctor "PrismFreeinference.Freeinference.Staging.TrueRouting") (ctor "PrismFreeinference.Freeinference.Staging.StagedReplace"))
+
   (type "PrismFreeinference.Freeinference.Completion" (ctor "PrismFreeinference.Freeinference.Completion.mk" (id String) (created String) (model String) (text String) (fingerprint String) (receipt String)))
 
   (type "PrismFreeinference.Freeinference.Memo" (ctor "PrismFreeinference.Freeinference.Memo.mk" (model (List String)) (engineKappa String) (promptKappa String) (paramsKappa String) (outputKappa String) (receipt String)))
+
+  (type "PrismFreeinference.Freeinference.Priority" (ctor "PrismFreeinference.Freeinference.Priority.First") (ctor "PrismFreeinference.Freeinference.Priority.Fill") (ctor "PrismFreeinference.Freeinference.Priority.Skip"))
 
   (type "PrismFreeinference.Freeinference.View" (ctor "PrismFreeinference.Freeinference.View.mk" (headline String) (lede String) (promptPlaceholder String) (sendLabel String) (loadingLabel String) (servedLabel String) (sealedLabel String) (rederiveLabel String) (identicalLabel String) (noGpuLabel String) (offlineLabel String) (modelLabel String) (appearanceLabel String) (darkLabel String) (lightLabel String) (immersiveLabel String) (wallpapers (List (named "PrismFreeinference.Freeinference.Wallpaper"))) (localLabel String) (paidLabel String) (keyLabel String) (keyPlaceholder String) (keySavedLabel String) (paidOnceLabel String) (costLabel String) (freeLabel String) (noKeyLabel String) (noCreditLabel String) (providerBusyLabel String) (paidOfflineLabel String) (paidModels (List (named "PrismFreeinference.Freeinference.PaidModel"))) (connectLabel String) (connectedLabel String) (listeningLabel String) (notConnectedLabel String) (runLabel String) (verifyLabel String) (baseUrlLabel String) (anyKeyLabel String) (modelIdLabel String) (testLabel String) (stayOpenLabel String) (askLabel String) (secondTabLabel String) (copyLabel String) (copiedLabel String) (macLabel String) (windowsLabel String)))
 
@@ -121,6 +131,10 @@
   (def expertPage ((start Nat) (length Nat) (experts Nat) (expert Nat)) (named "PrismFreeinference.Freeinference.Range")
     (let _x_5 (call stride length experts) (let _x_6 (mul expert _x_5) (let _x_21 (add start _x_6) (let _x_8 1 (let _x_26 (add expert _x_8) (let _x_12 (mul _x_26 _x_5) (let _x_30 (add start _x_12) (let _x_14 (ctor "PrismFreeinference.Freeinference.Range.mk" _x_21 _x_30) _x_14)))))))))
 
+  ;; full: PrismFreeinference.Freeinference.fetchSource
+  (def fetchSource ((onDevice Bool) (onMirror Bool) (peerFaster Bool)) (named "PrismFreeinference.Freeinference.Source")
+    (cases onDevice (alt "Bool.false" () (cases peerFaster (alt "Bool.false" () (cases onMirror (alt "Bool.false" () (let _x_100 (ctor "PrismFreeinference.Freeinference.Source.Nowhere") _x_100)) (alt "Bool.true" () (let _x_101 (ctor "PrismFreeinference.Freeinference.Source.Mirror") _x_101)))) (alt "Bool.true" () (let _x_99 (ctor "PrismFreeinference.Freeinference.Source.Peer") _x_99)))) (alt "Bool.true" () (let _x_95 (ctor "PrismFreeinference.Freeinference.Source.Device") _x_95))))
+
   ;; full: PrismFreeinference.Freeinference.fingerprintOf
   (def fingerprintOf ((value (named "PrismFreeinference.Freeinference.Completion"))) String
     (let _x_8 (proj "PrismFreeinference.Freeinference.Completion" "fingerprint" value) (let _x_9 (string "\n") (let _x_20 2147483647 (let _x_13 (split-exact _x_8 _x_9 _x_20) (cases _x_13 (alt "Option.none" () (let _x_23 (string "") _x_23)) (alt "Option.some" (val_16) (let _x_24 (string "\n") (let _x_25 (join val_16 _x_24) _x_25)))))))))
@@ -201,6 +215,10 @@
   (def orMessages ((x_1 (List (named "PrismFreeinference.Freeinference.Message")))) String
     (cases x_1 (alt "List.nil" () (let _x_37 (string "") _x_37)) (alt "List.cons" (head_29 tail_30) (cases tail_30 (alt "List.nil" () (let _x_49 (call orMessage head_29) _x_49)) (alt "List.cons" (head_50 tail_51) (let _x_53 (call orMessage head_29) (let _x_54 (call orMessages tail_30) (let _x_55 (ctor "List.nil") (let _x_56 (ctor "List.cons" _x_54 _x_55) (let _x_57 (ctor "List.cons" _x_53 _x_56) (let _x_58 (string ",") (let _x_59 (join _x_57 _x_58) _x_59))))))))))))
 
+  ;; full: PrismFreeinference.Freeinference.pageAction
+  (def pageAction ((resident Bool) (staging (named "PrismFreeinference.Freeinference.Staging"))) (named "PrismFreeinference.Freeinference.PageAction")
+    (cases resident (alt "Bool.false" () (cases staging (alt "PrismFreeinference.Freeinference.Staging.TrueRouting" () (let _x_40 (ctor "PrismFreeinference.Freeinference.PageAction.Fetch") _x_40)) (alt "PrismFreeinference.Freeinference.Staging.StagedReplace" () (let _x_41 (ctor "PrismFreeinference.Freeinference.PageAction.Drop") _x_41)))) (alt "Bool.true" () (let _x_39 (ctor "PrismFreeinference.Freeinference.PageAction.Bind") _x_39))))
+
   ;; full: PrismFreeinference.Freeinference.pageBytes
   ;; arity: 2 erased/type args dropped
   (def pageBytes ((rowBytes Nat) (rows Nat)) Nat
@@ -215,6 +233,14 @@
   ;; arity: 8 erased/type args dropped
   (def paramsCanonical ((request (named "PrismFreeinference.Freeinference.Request"))) String
     (let _x_1 (string "{\"max_tokens\":") (let _x_2 (proj "PrismFreeinference.Freeinference.Request" "maxTokens" request) (let _x_3 (call optionalDecimal _x_2) (let _x_4 (string ",\"seed\":") (let _x_5 (proj "PrismFreeinference.Freeinference.Request" "seed" request) (let _x_6 (call optionalDecimal _x_5) (let _x_7 (string ",\"temperature\":") (let _x_8 (call temperatureText request) (let _x_9 (string "}") (let _x_10 (ctor "List.nil") (let _x_11 (ctor "List.cons" _x_9 _x_10) (let _x_12 (ctor "List.cons" _x_8 _x_11) (let _x_13 (ctor "List.cons" _x_7 _x_12) (let _x_14 (ctor "List.cons" _x_6 _x_13) (let _x_15 (ctor "List.cons" _x_4 _x_14) (let _x_16 (ctor "List.cons" _x_3 _x_15) (let _x_17 (ctor "List.cons" _x_1 _x_16) (let _x_18 (string "") (let _x_19 (join _x_17 _x_18) _x_19))))))))))))))))))))
+
+  ;; full: PrismFreeinference.Freeinference.poolAdmit
+  (def poolAdmit ((present Bool) (spaceLeft Bool)) (named "PrismFreeinference.Freeinference.Admission")
+    (cases present (alt "Bool.false" () (cases spaceLeft (alt "Bool.false" () (let _x_55 (ctor "PrismFreeinference.Freeinference.Admission.EvictThenInsert") _x_55)) (alt "Bool.true" () (let _x_56 (ctor "PrismFreeinference.Freeinference.Admission.Insert") _x_56)))) (alt "Bool.true" () (let _x_54 (ctor "PrismFreeinference.Freeinference.Admission.Touch") _x_54))))
+
+  ;; full: PrismFreeinference.Freeinference.prefetchOrder
+  (def prefetchOrder ((predicted Bool) (popular Bool)) (named "PrismFreeinference.Freeinference.Priority")
+    (cases predicted (alt "Bool.false" () (cases popular (alt "Bool.false" () (let _x_55 (ctor "PrismFreeinference.Freeinference.Priority.Skip") _x_55)) (alt "Bool.true" () (let _x_56 (ctor "PrismFreeinference.Freeinference.Priority.Fill") _x_56)))) (alt "Bool.true" () (let _x_54 (ctor "PrismFreeinference.Freeinference.Priority.First") _x_54))))
 
   ;; full: PrismFreeinference.Freeinference.preimages
   (def preimages ((request (named "PrismFreeinference.Freeinference.Request"))) (named "PrismFreeinference.Freeinference.Preimages")

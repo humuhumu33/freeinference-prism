@@ -13,9 +13,7 @@
 //! Errors: {"error":"..."}.
 
 use crate::{
-    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels,
-    encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, objEntry, preimages, rootPreimage, route, tablePage, view, Completion,
-    Decision, Manifest, Message, Obj, Provider, Request, Route, Shard,
+    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, objEntry, pageAction, poolAdmit, prefetchOrder, preimages, rootPreimage, route, tablePage, view, Admission, Completion, Decision, Manifest, Message, Obj, PageAction, Priority, Provider, Request, Route, Shard, Source, Staging,
 };
 use serde_json::{json, Value};
 
@@ -144,6 +142,14 @@ fn run(input: &[u8]) -> Value {
         "root-preimage" => json!({ "bytes": rootPreimage(&manifest(&value["manifest"])) }),
         "object-line" => json!({ "bytes": objEntry(&Obj { kind: text(&value["kind"]), label: text(&value["name"]), kappa: text(&value["kappa"]), bytes: u(&value["bytes"]) }) }),
         "admit" => json!({ "admit": admitPage(&value["listed"].as_array().map(|l| l.iter().filter_map(|k| k.as_str().map(str::to_owned)).collect::<Vec<_>>()).unwrap_or_default(), value["kappa"].as_str().unwrap_or(""), value["derived"].as_str().unwrap_or("")) }),
+        // The pool and stage tables: what happens to a routed page, how the pool admits, where a page comes from, what is prefetched.
+        "page-action" => {
+            let staging = if value["staging"].as_str() == Some("staged-replace") { Staging::StagedReplace } else { Staging::TrueRouting };
+            json!({ "action": match pageAction(value["resident"].as_bool().unwrap_or(false), staging) { PageAction::Bind => "Bind", PageAction::Fetch => "Fetch", PageAction::Drop => "Drop" } })
+        }
+        "pool-admit" => json!({ "admission": match poolAdmit(value["present"].as_bool().unwrap_or(false), value["spaceLeft"].as_bool().unwrap_or(false)) { Admission::Touch => "Touch", Admission::Insert => "Insert", Admission::EvictThenInsert => "EvictThenInsert" } }),
+        "fetch-source" => json!({ "source": match fetchSource(value["onDevice"].as_bool().unwrap_or(false), value["onMirror"].as_bool().unwrap_or(false), value["peerFaster"].as_bool().unwrap_or(false)) { Source::Device => "Device", Source::Peer => "Peer", Source::Mirror => "Mirror", Source::Nowhere => "Nowhere" } }),
+        "prefetch-order" => json!({ "priority": match prefetchOrder(value["predicted"].as_bool().unwrap_or(false), value["popular"].as_bool().unwrap_or(false)) { Priority::First => "First", Priority::Fill => "Fill", Priority::Skip => "Skip" } }),
         // Who answers: the route table in the model, every row a theorem.
         "route" => {
             let provider = if value["provider"].as_str() == Some("paid") { Provider::Paid } else { Provider::Local };

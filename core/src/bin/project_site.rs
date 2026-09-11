@@ -72,9 +72,12 @@ fn page() -> String {
       <span class="hint mono" id="keyhint">{paid_once}</span>
     </div>
     <div class="row">
-      <div class="who" role="radiogroup" aria-label="{local} / {paid}">
-        <button class="mode2" type="button" data-provider="local" aria-pressed="true">{local}</button>
-        <button class="mode2" type="button" data-provider="paid" aria-pressed="false">{paid}</button>
+      <div class="who">
+        <div class="switch" id="who" role="radiogroup" aria-label="{local} / {paid}">
+          <span class="thumb" id="whoThumb" aria-hidden="true"></span>
+          <button class="seg" type="button" role="radio" data-provider="local" aria-checked="true">{local}</button>
+          <button class="seg" type="button" role="radio" data-provider="paid" aria-checked="false">{paid}</button>
+        </div>
         <select class="pick" id="paidModel" aria-label="{paid}" hidden>{paid_models}</select>
       </div>
       <button class="pill" id="connect" type="button" hidden aria-haspopup="dialog" aria-expanded="false"><span class="dot" id="pillDot"></span>{connect}</button>
