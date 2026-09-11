@@ -106,6 +106,8 @@ Words: the switch, the key field, the paid model names, the cost chip and every 
 
 The streaming expert pool's rules, as edge0 runs them, as closed decision tables with one theorem per row (attestation `2ad0ac62…`, 139 declarations): `pageAction(resident, staging)` (a resident page binds; a miss is a fetch under true routing and a drop under staged replace), `poolAdmit(present, spaceLeft)` (touch, insert, evict then insert), `fetchSource(onDevice, onMirror, peerFaster)` (device, then a faster peer, then a mirror, else nowhere), `prefetchOrder(predicted, popular)` (a predicted page first, a popular one to fill, else skip). Fourteen theorems; 17 rows through the crate and 13 through the guest. The list bookkeeping (which κ sits in which slot) is the adapter's; the decisions are not.
 
+Pack, Ladder and Loader followed the same way (attestation `9d0b3291…`, 161 declarations): `packRank` and `packed` (header, tokenizer, spine, experts in first use order; the n gram table never packed), `firstTokenReady` (the spine and the prompt's own pages, nothing more), `promote` (the small resident model answers until the large one is resident and measured fast; a promoted session never demotes), `loaderStart` (resume from a session snapshot, warm from a shell on the device, else cold). Fourteen theorems; 12 rows through the guest, every row through the crate. Finding 11: `section` is a Lean keyword too; the parameter is `part`.
+
 A note on the lane: after a WSL restart the Windows mounted checkout refuses `lexlean verify`'s publish step with `EACCES` (DrvFs without metadata), while a WSL native copy verifies the same module. `scripts/lane-native.sh` mirrors the tree, runs the lane there and copies the artifacts back.
 
 ## Planted defect
@@ -159,7 +161,7 @@ All from this model; none required editing generated code.
 7. LexLean's `\title` must be a lexicon phrase (`LLL1004`); the Calculator's `Boolean` is used.
 8. lean4-prod's generated recursion is a descent per element: a structurally recursive string builder over a list clones its accumulator and recurses once per element, so a real object list (28,046 lines for edge0-8b, 156,256 per n gram shard for Qwen3.8) overflowed the host stack and the wasm stack, both in accumulator form and in nested form. The model therefore names each shard's object list by its κ and spells one object as one line (`objEntry`); the join is the adapter's, the hash is the adapter's, and the corpus checks every line. A list map into a list is also refused (`UnsupportedList`, finding 3), so there is no list level encoder to reach for.
 9. LexLean's unchecked `multiply` and `quotient` require `nat` or `int` operands, while `format_decimal` requires a fixed integer; the page arithmetic runs on `nat` (lowered to checked `u64`, `Result` on overflow) and the manifest's counts on `uint64`. `add` is a term kind, not a primitive; `ble` is the boolean order.
-10. Names that are Lean keywords break the generated module (`end` as a field, `admit` as a definition) and `name` clashes with the author helper's own parameter; the fields are `stop`, `admitPage` and `label`.
+10. Names that are Lean keywords break the generated module (`end` as a field, `admit` as a definition, `section` as a parameter) and `name` clashes with the author helper's own parameter; the names are `stop`, `admitPage`, `part` and `label`.
 
 ## Not built
 

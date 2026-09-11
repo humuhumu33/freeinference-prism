@@ -31,6 +31,13 @@ pub struct Request {
     pub temperature: alloc::string::String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Tier {
+    Small = 0,
+    Large = 1,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message {
     pub role: alloc::string::String,
@@ -94,6 +101,24 @@ pub enum Route {
 pub enum Staging {
     TrueRouting = 0,
     StagedReplace = 1,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Section {
+    Header = 0,
+    Tokenizer = 1,
+    Spine = 2,
+    Expert = 3,
+    Table = 4,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Start {
+    Cold = 0,
+    Warm = 1,
+    Resume = 2,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -351,6 +376,13 @@ pub fn fingerprintOf(value: &crate::Completion) -> alloc::string::String {
     } } } }
 }
 
+pub fn firstTokenReady(spinePresent: bool, promptPagesPresent: bool) -> bool {
+    match spinePresent {
+        false => spinePresent,
+        true => promptPagesPresent,
+    }
+}
+
 pub fn idOf(value: &crate::Completion) -> alloc::string::String {
     { let _x_8 = &(value).id; { let _x_20 = 2147483647; { let _x_13 = { let __value = _x_8; let __delimiter = alloc::string::String::from("\n"); let __maximum = usize::try_from(_x_20).ok(); if __delimiter.is_empty() { None } else { let __fields: alloc::vec::Vec<alloc::string::String> = __value.split(&__delimiter).map(alloc::string::String::from).collect(); __maximum.filter(|__maximum| __fields.len() <= *__maximum).map(|_| __fields) } }; match _x_13 {
         None => alloc::string::String::from(""),
@@ -365,6 +397,16 @@ pub fn intersects(x_1: &[alloc::string::String], x_2: &[alloc::string::String]) 
         false => { let _x_48 = intersects(&(tail_18), &(x_2)); _x_48 },
         true => _x_35,
     } },
+    }
+}
+
+pub fn loaderStart(shellOnDevice: bool, snapshotOnDevice: bool) -> crate::Start {
+    match snapshotOnDevice {
+        false => match shellOnDevice {
+        false => { let _x_55 = crate::Start::Cold; _x_55 },
+        true => { let _x_56 = crate::Start::Warm; _x_56 },
+    },
+        true => { let _x_54 = crate::Start::Resume; _x_54 },
     }
 }
 
@@ -479,6 +521,23 @@ pub fn orMessages(x_1: &[crate::Message]) -> alloc::string::String {
     }
 }
 
+pub fn packRank(part: crate::Section) -> u64 {
+    match part {
+        crate::Section::Header => { let _x_44 = 0; _x_44 },
+        crate::Section::Tokenizer => { let _x_46 = 1; _x_46 },
+        crate::Section::Spine => { let _x_48 = 2; _x_48 },
+        crate::Section::Expert => { let _x_50 = 3; _x_50 },
+        crate::Section::Table => { let _x_52 = 4; _x_52 },
+    }
+}
+
+pub fn packed(part: crate::Section) -> bool {
+    match part {
+        crate::Section::Table => { let _x_31 = false; _x_31 },
+        _ => { let _x_23 = true; _x_23 },
+    }
+}
+
 pub fn pageAction(resident: bool, staging: crate::Staging) -> crate::PageAction {
     match resident {
         false => match staging {
@@ -523,6 +582,19 @@ pub fn prefetchOrder(predicted: bool, popular: bool) -> crate::Priority {
 
 pub fn preimages(request: &crate::Request) -> crate::Preimages {
     { let _x_1 = &(request).messages; { let _x_2 = renderPrompt(&(_x_1)); { let _x_3 = (_x_2).into_bytes(); { let _x_4 = paramsCanonical(&(request)); { let _x_5 = (_x_4).into_bytes(); { let _x_6 = crate::Preimages { prompt: _x_3, params: _x_5 }; _x_6 } } } } } }
+}
+
+pub fn promote(current: crate::Tier, largeResident: bool, largeFast: bool) -> crate::Tier {
+    match current {
+        crate::Tier::Small => match largeResident {
+        false => current,
+        true => match largeFast {
+        false => current,
+        true => { let _x_73 = crate::Tier::Large; _x_73 },
+    },
+    },
+        crate::Tier::Large => current,
+    }
 }
 
 pub fn receiptOf(value: &crate::Completion) -> alloc::string::String {

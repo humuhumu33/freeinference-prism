@@ -13,7 +13,7 @@
 //! Errors: {"error":"..."}.
 
 use crate::{
-    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, objEntry, pageAction, poolAdmit, prefetchOrder, preimages, rootPreimage, route, tablePage, view, Admission, Completion, Decision, Manifest, Message, Obj, PageAction, Priority, Provider, Request, Route, Shard, Source, Staging,
+    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, firstTokenReady, loaderStart, objEntry, packRank, packed, pageAction, poolAdmit, prefetchOrder, preimages, promote, rootPreimage, route, tablePage, view, Admission, Completion, Decision, Manifest, Message, Obj, PageAction, Priority, Provider, Request, Route, Section, Shard, Source, Staging, Start, Tier,
 };
 use serde_json::{json, Value};
 
@@ -150,6 +150,17 @@ fn run(input: &[u8]) -> Value {
         "pool-admit" => json!({ "admission": match poolAdmit(value["present"].as_bool().unwrap_or(false), value["spaceLeft"].as_bool().unwrap_or(false)) { Admission::Touch => "Touch", Admission::Insert => "Insert", Admission::EvictThenInsert => "EvictThenInsert" } }),
         "fetch-source" => json!({ "source": match fetchSource(value["onDevice"].as_bool().unwrap_or(false), value["onMirror"].as_bool().unwrap_or(false), value["peerFaster"].as_bool().unwrap_or(false)) { Source::Device => "Device", Source::Peer => "Peer", Source::Mirror => "Mirror", Source::Nowhere => "Nowhere" } }),
         "prefetch-order" => json!({ "priority": match prefetchOrder(value["predicted"].as_bool().unwrap_or(false), value["popular"].as_bool().unwrap_or(false)) { Priority::First => "First", Priority::Fill => "Fill", Priority::Skip => "Skip" } }),
+        // Pack, Ladder, Loader: the archive's order, which model answers, how a visit starts.
+        "pack-rank" => {
+            let section = match value["section"].as_str().unwrap_or("") { "header" => Section::Header, "tokenizer" => Section::Tokenizer, "spine" => Section::Spine, "expert" => Section::Expert, _ => Section::Table };
+            json!({ "rank": packRank(section.clone()), "packed": packed(section) })
+        }
+        "first-token-ready" => json!({ "ready": firstTokenReady(value["spinePresent"].as_bool().unwrap_or(false), value["promptPagesPresent"].as_bool().unwrap_or(false)) }),
+        "promote" => {
+            let current = if value["current"].as_str() == Some("large") { Tier::Large } else { Tier::Small };
+            json!({ "tier": match promote(current, value["largeResident"].as_bool().unwrap_or(false), value["largeFast"].as_bool().unwrap_or(false)) { Tier::Large => "Large", Tier::Small => "Small" } })
+        }
+        "loader-start" => json!({ "start": match loaderStart(value["shellOnDevice"].as_bool().unwrap_or(false), value["snapshotOnDevice"].as_bool().unwrap_or(false)) { Start::Cold => "Cold", Start::Warm => "Warm", Start::Resume => "Resume" } }),
         // Who answers: the route table in the model, every row a theorem.
         "route" => {
             let provider = if value["provider"].as_str() == Some("paid") { Provider::Paid } else { Provider::Local };

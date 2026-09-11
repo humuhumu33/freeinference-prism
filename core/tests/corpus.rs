@@ -2,7 +2,7 @@
 //! fixed corpus `tools/corpus.py` writes to `model/corpus.json`.
 
 use freeinference_core::{
-    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, memoMatches, objEntry, pageAction, poolAdmit, prefetchOrder, preimages, rootPreimage, route, tablePage, Admission, Completion, Decision, Manifest, Memo, Message, Obj, PageAction, Priority, Provider, Request, Route, Shard, Source, Staging,
+    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, firstTokenReady, loaderStart, memoMatches, objEntry, packRank, packed, pageAction, poolAdmit, prefetchOrder, preimages, promote, rootPreimage, route, tablePage, Admission, Completion, Decision, Manifest, Memo, Message, Obj, PageAction, Priority, Provider, Request, Route, Section, Shard, Source, Staging, Start, Tier,
 };
 use serde_json::Value;
 
@@ -245,4 +245,21 @@ fn pool_and_stage_tables_hold_on_every_row() {
     assert_eq!(prefetchOrder(true, false), Priority::First);
     assert_eq!(prefetchOrder(false, true), Priority::Fill);
     assert_eq!(prefetchOrder(false, false), Priority::Skip);
+}
+
+/// Pack, Ladder and Loader, every row, as the theorems state them; promotion is monotone.
+#[test]
+fn pack_ladder_and_loader_tables_hold_on_every_row() {
+    assert_eq!((packRank(Section::Header), packRank(Section::Tokenizer), packRank(Section::Spine), packRank(Section::Expert), packRank(Section::Table)), (0, 1, 2, 3, 4));
+    assert!(packed(Section::Header) && packed(Section::Tokenizer) && packed(Section::Spine) && packed(Section::Expert) && !packed(Section::Table));
+    assert!(firstTokenReady(true, true) && !firstTokenReady(true, false) && !firstTokenReady(false, true) && !firstTokenReady(false, false));
+    for resident in [false, true] { for fast in [false, true] { assert_eq!(promote(Tier::Large, resident, fast), Tier::Large); } }
+    assert_eq!(promote(Tier::Small, true, true), Tier::Large);
+    assert_eq!(promote(Tier::Small, false, true), Tier::Small);
+    assert_eq!(promote(Tier::Small, true, false), Tier::Small);
+    assert_eq!(promote(Tier::Small, false, false), Tier::Small);
+    assert_eq!(loaderStart(true, true), Start::Resume);
+    assert_eq!(loaderStart(false, true), Start::Resume);
+    assert_eq!(loaderStart(true, false), Start::Warm);
+    assert_eq!(loaderStart(false, false), Start::Cold);
 }

@@ -20,8 +20,10 @@ escapeReturn
 expertPage
 fetchSource
 fingerprintOf
+firstTokenReady
 idOf
 intersects
+loaderStart
 manifestRepo
 manifestRevision
 manifestSpec
@@ -37,6 +39,8 @@ objLabel
 optionalDecimal
 orMessage
 orMessages
+packRank
+packed
 pageAction
 pageBytes
 pageStart
@@ -44,6 +48,7 @@ paramsCanonical
 poolAdmit
 prefetchOrder
 preimages
+promote
 receiptOf
 renderMessage
 renderPrompt

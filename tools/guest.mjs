@@ -58,6 +58,14 @@ for (const [resident, keyPresent, online, want] of readiness) {
   if (got !== want) { console.error(`guest: endpointReady(${resident},${keyPresent},${online}) = ${got}, want ${want}`); process.exit(1); }
 }
 // The κ object through the guest: the real edge0-8b manifest's root preimage, and the page rules.
+const ladder = [
+  ["pack-rank", { section: "header" }, "rank", 0], ["pack-rank", { section: "spine" }, "rank", 2], ["pack-rank", { section: "table" }, "packed", false], ["pack-rank", { section: "expert" }, "packed", true],
+  ["first-token-ready", { spinePresent: true, promptPagesPresent: true }, "ready", true], ["first-token-ready", { spinePresent: true, promptPagesPresent: false }, "ready", false],
+  ["promote", { current: "large", largeResident: false, largeFast: false }, "tier", "Large"], ["promote", { current: "small", largeResident: true, largeFast: true }, "tier", "Large"], ["promote", { current: "small", largeResident: true, largeFast: false }, "tier", "Small"],
+  ["loader-start", { shellOnDevice: true, snapshotOnDevice: true }, "start", "Resume"], ["loader-start", { shellOnDevice: true, snapshotOnDevice: false }, "start", "Warm"], ["loader-start", { shellOnDevice: false, snapshotOnDevice: false }, "start", "Cold"],
+];
+for (const [op, input, key, want] of ladder) { const got = run({ op, ...input })[key]; if (got !== want) { console.error(`guest: ${op} ${JSON.stringify(input)} = ${got}, want ${want}`); process.exit(1); } }
+console.log(`guest: ${ladder.length} pack, ladder and loader rows identical through core.wasm`);
 const pool = [
   ["page-action", { resident: true, staging: "true-routing" }, "action", "Bind"], ["page-action", { resident: false, staging: "true-routing" }, "action", "Fetch"], ["page-action", { resident: false, staging: "staged-replace" }, "action", "Drop"],
   ["pool-admit", { present: true, spaceLeft: false }, "admission", "Touch"], ["pool-admit", { present: false, spaceLeft: true }, "admission", "Insert"], ["pool-admit", { present: false, spaceLeft: false }, "admission", "EvictThenInsert"],
