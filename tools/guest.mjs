@@ -59,6 +59,7 @@ for (const [resident, keyPresent, online, want] of readiness) {
 }
 // The κ object through the guest: the real edge0-8b manifest's root preimage, and the page rules.
 const ladder = [
+  ["warmup", { localReady: false, keyPresent: true, online: true }, "warmup", true], ["warmup", { localReady: true, keyPresent: true, online: true }, "warmup", false], ["warmup", { localReady: false, keyPresent: false, online: true }, "warmup", false], ["warmup", { localReady: false, keyPresent: true, online: false }, "warmup", false],
   ["pack-rank", { section: "header" }, "rank", 0], ["pack-rank", { section: "spine" }, "rank", 2], ["pack-rank", { section: "table" }, "packed", false], ["pack-rank", { section: "expert" }, "packed", true],
   ["first-token-ready", { spinePresent: true, promptPagesPresent: true }, "ready", true], ["first-token-ready", { spinePresent: true, promptPagesPresent: false }, "ready", false],
   ["promote", { current: "large", largeResident: false, largeFast: false }, "tier", "Large"], ["promote", { current: "small", largeResident: true, largeFast: true }, "tier", "Large"], ["promote", { current: "small", largeResident: true, largeFast: false }, "tier", "Small"],

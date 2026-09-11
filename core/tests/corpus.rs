@@ -2,7 +2,7 @@
 //! fixed corpus `tools/corpus.py` writes to `model/corpus.json`.
 
 use freeinference_core::{
-    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, firstTokenReady, loaderStart, memoMatches, objEntry, packRank, packed, pageAction, poolAdmit, prefetchOrder, preimages, promote, rootPreimage, route, tablePage, Admission, Completion, Decision, Manifest, Memo, Message, Obj, PageAction, Priority, Provider, Request, Route, Section, Shard, Source, Staging, Start, Tier,
+    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, firstTokenReady, loaderStart, memoMatches, objEntry, packRank, packed, pageAction, poolAdmit, prefetchOrder, preimages, promote, rootPreimage, route, tablePage, warmup, Admission, Completion, Decision, Manifest, Memo, Message, Obj, PageAction, Priority, Provider, Request, Route, Section, Shard, Source, Staging, Start, Tier,
 };
 use serde_json::Value;
 
@@ -286,4 +286,14 @@ fn olmoe_trace_hit_counts_match_through_pool_admit() {
         assert_eq!((hits, misses), (pool["hits"].as_u64().unwrap(), pool["misses"].as_u64().unwrap()), "pool of {capacity} pages");
     }
     println!("olmoe trace: hit counts identical through poolAdmit for {} pool sizes", expected["pools"].as_array().unwrap().len());
+}
+
+/// The warm up rule: OpenRouter answers only while the local model is not resident, with a key, online.
+#[test]
+fn warmup_answers_only_while_loading_with_a_key_online() {
+    assert!(warmup(false, true, true));
+    assert!(!warmup(true, true, true));
+    assert!(!warmup(false, false, true));
+    assert!(!warmup(false, true, false));
+    assert!(!warmup(true, false, false));
 }

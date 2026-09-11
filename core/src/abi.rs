@@ -13,7 +13,7 @@
 //! Errors: {"error":"..."}.
 
 use crate::{
-    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, firstTokenReady, loaderStart, objEntry, packRank, packed, pageAction, poolAdmit, prefetchOrder, preimages, promote, rootPreimage, route, tablePage, view, Admission, Completion, Decision, Manifest, Message, Obj, PageAction, Priority, Provider, Request, Route, Section, Shard, Source, Staging, Start, Tier,
+    admitPage, decide, done, encodeCompletion, encodeDelta, encodeError, encodeFinal, encodeModels, encodeOpenRouterRequest, encodeRole, endpointReady, expertPage, fetchSource, firstTokenReady, loaderStart, objEntry, packRank, packed, pageAction, poolAdmit, prefetchOrder, preimages, promote, rootPreimage, route, tablePage, view, warmup, Admission, Completion, Decision, Manifest, Message, Obj, PageAction, Priority, Provider, Request, Route, Section, Shard, Source, Staging, Start, Tier,
 };
 use serde_json::{json, Value};
 
@@ -161,6 +161,7 @@ fn run(input: &[u8]) -> Value {
             json!({ "tier": match promote(current, value["largeResident"].as_bool().unwrap_or(false), value["largeFast"].as_bool().unwrap_or(false)) { Tier::Large => "Large", Tier::Small => "Small" } })
         }
         "loader-start" => json!({ "start": match loaderStart(value["shellOnDevice"].as_bool().unwrap_or(false), value["snapshotOnDevice"].as_bool().unwrap_or(false)) { Start::Cold => "Cold", Start::Warm => "Warm", Start::Resume => "Resume" } }),
+        "warmup" => json!({ "warmup": warmup(value["localReady"].as_bool().unwrap_or(false), value["keyPresent"].as_bool().unwrap_or(false), value["online"].as_bool().unwrap_or(false)) }),
         // Who answers: the route table in the model, every row a theorem.
         "route" => {
             let provider = if value["provider"].as_str() == Some("paid") { Provider::Paid } else { Provider::Local };
@@ -200,7 +201,7 @@ pub fn view_json() -> Value {
         "wallpapers": v.wallpapers.iter().map(|w| json!({ "file": w.file, "name": w.label, "by": w.author, "byUrl": w.authorUrl })).collect::<Vec<_>>(),
         "localLabel": v.localLabel, "paidLabel": v.paidLabel, "keyLabel": v.keyLabel, "keyPlaceholder": v.keyPlaceholder, "keySavedLabel": v.keySavedLabel,
         "paidOnceLabel": v.paidOnceLabel, "costLabel": v.costLabel, "freeLabel": v.freeLabel, "noKeyLabel": v.noKeyLabel, "noCreditLabel": v.noCreditLabel,
-        "providerBusyLabel": v.providerBusyLabel, "paidOfflineLabel": v.paidOfflineLabel,
+        "providerBusyLabel": v.providerBusyLabel, "paidOfflineLabel": v.paidOfflineLabel, "warmupLabel": v.warmupLabel,
         "paidModels": v.paidModels.iter().map(|m| json!({ "id": m.id, "label": m.label })).collect::<Vec<_>>(),
         "connectLabel": v.connectLabel, "connectedLabel": v.connectedLabel, "listeningLabel": v.listeningLabel, "notConnectedLabel": v.notConnectedLabel,
         "runLabel": v.runLabel, "verifyLabel": v.verifyLabel, "baseUrlLabel": v.baseUrlLabel, "anyKeyLabel": v.anyKeyLabel, "modelIdLabel": v.modelIdLabel,

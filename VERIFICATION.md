@@ -122,6 +122,10 @@ OLMoE 1B 7B (the Q engine's 64 × 8 MoE, one κ block per expert matrix) ran in 
 
 The consequence for the streaming design: the pool must hold the whole expert set for full speed; paging is a fill phase; the prerouter orders the fill and hides latency, it does not reduce bytes.
 
+## Measured, the warm up, 2026-09-11
+
+`warmup(localReady, keyPresent, online)` is true only while the local model is not resident, with a key on the device, online (four theorems, attestation `fc111812…`, 166 declarations). In the page: with BitNet at 58% of its first download and the visitor's OpenRouter key kept on the device, a question was answered by `qwen/qwen3.8-flash` in 821 ms end to end, sealed like every paid answer, the chip reading the View's word "Answered by OpenRouter while your model loads", cost $0.00002. Without a key, or offline, the visitor waits for the local model as before. A key cannot ship inside the page (public within a minute; a shared free tier dies on the first afternoon), so this rung is for visitors who hold a key; `relay/openrouter-worker.js` is the operator funded form, a small server the operator may choose to run, with a per visitor daily budget, and the chip would say so.
+
 A note on the lane: after a WSL restart the Windows mounted checkout refuses `lexlean verify`'s publish step with `EACCES` (DrvFs without metadata), while a WSL native copy verifies the same module. `scripts/lane-native.sh` mirrors the tree, runs the lane there and copies the artifacts back.
 
 ## Planted defect

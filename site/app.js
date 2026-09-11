@@ -245,6 +245,18 @@ async function turn(messages, body, el) {
     return hit.text;
   }
   if (refusal[route]) throw new Error(refusal[route]());
+  // Warm up: the local model is chosen but not resident yet; a held key answers through OpenRouter meanwhile.
+  if (route === "Local" && !gpuEngine && (await coreReady()).run({ op: "warmup", localReady: !!gpuEngine, keyPresent: !!(await keyGet()), online: navigator.onLine }).warmup) {
+    const warmBody = { ...body, model: "openrouter/" + VIEW.paidModels[0].id };
+    const warmHit = await lookup(warmBody);
+    if (warmHit.hit) { el.textContent = warmHit.text; chips(el, [{ text: VIEW.warmupLabel, title: warmHit.fingerprint }, { text: VIEW.servedLabel, title: warmHit.receipt, ok: true }]); return warmHit.text; }
+    const { text, rec } = await paidGenerate(warmBody, (t) => { el.textContent = t; });
+    el.textContent = text;
+    const receipt = await sealPaid(warmBody, rec, warmHit.key);
+    chips(el, [{ text: VIEW.warmupLabel, title: `${rec.model} · ${rec.provider || ""}` }, { text: VIEW.sealedLabel, title: receipt, ok: true }, paidChip(rec)]);
+    $("hint").textContent = `${Math.round(performance.now() - t0)} ms · first token ${rec.ttftMs} ms`;
+    return text;
+  }
   if (route === "Paid") {
     const { text, rec } = await paidGenerate(body, (t) => { el.textContent = t; });
     el.textContent = text;

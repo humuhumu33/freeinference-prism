@@ -183,7 +183,7 @@ decls = [
               wallpapers=lst(named("Wallpaper")),
               localLabel=STRING, paidLabel=STRING, keyLabel=STRING, keyPlaceholder=STRING, keySavedLabel=STRING,
               paidOnceLabel=STRING, costLabel=STRING, freeLabel=STRING, noKeyLabel=STRING, noCreditLabel=STRING,
-              providerBusyLabel=STRING, paidOfflineLabel=STRING, paidModels=lst(named("PaidModel")),
+              providerBusyLabel=STRING, paidOfflineLabel=STRING, warmupLabel=STRING, paidModels=lst(named("PaidModel")),
               connectLabel=STRING, connectedLabel=STRING, listeningLabel=STRING, notConnectedLabel=STRING,
               runLabel=STRING, verifyLabel=STRING, baseUrlLabel=STRING, anyKeyLabel=STRING, modelIdLabel=STRING,
               testLabel=STRING, stayOpenLabel=STRING, askLabel=STRING, secondTabLabel=STRING,
@@ -257,6 +257,7 @@ decls = [
         keySavedLabel=s("Key kept on this device"), paidOnceLabel=s("Paid once, then free from the seal"), costLabel=s("Paid"), freeLabel=s("Free"),
         noKeyLabel=s("Add your OpenRouter key to use paid models"), noCreditLabel=s("Your OpenRouter account has no credit"),
         providerBusyLabel=s("That model is busy right now. Try again or pick another"), paidOfflineLabel=s("Paid models need the network"),
+        warmupLabel=s("Answered by OpenRouter while your model loads"),
         paidModels=cons(record("PaidModel", id=s("qwen/qwen3.8-flash"), label=s("Qwen 3.8 Flash")),
                    cons(record("PaidModel", id=s("deepseek/deepseek-v4.1-flash"), label=s("DeepSeek V4.1 Flash")),
                    cons(record("PaidModel", id=s("nvidia/nemotron-3.5-lightning:free"), label=s("Nemotron 3.5, free")),
@@ -423,6 +424,10 @@ decls = [
     inductive("Start", "Cold", "Warm", "Resume"),
     definition("loaderStart", [("shellOnDevice", BOOL), ("snapshotOnDevice", BOOL)], named("Start"),
         if_(var("snapshotOnDevice"), ctor("Start.Resume"), if_(var("shellOnDevice"), ctor("Start.Warm"), ctor("Start.Cold")))),
+    # Warm up: while the local model is not yet resident, a visitor who holds a key is answered by
+    # OpenRouter and told so; without a key, or offline, they wait for the local model.
+    definition("warmup", [("localReady", BOOL), ("keyPresent", BOOL), ("online", BOOL)], BOOL,
+        if_(var("localReady"), b(False), band(var("keyPresent"), var("online")))),
     definition("decide", [("hit", BOOL), ("workerAttached", BOOL)], named("Decision"),
         if_(var("hit"), ctor("Decision.Serve"), if_(var("workerAttached"), ctor("Decision.Execute"), ctor("Decision.Refuse")))),
 
@@ -511,6 +516,10 @@ decls = [
     theorem("loaderStart_resume", eq(call("loaderStart", b(True), b(True)), ctor("Start.Resume"))),
     theorem("loaderStart_warm", eq(call("loaderStart", b(True), b(False)), ctor("Start.Warm"))),
     theorem("loaderStart_cold", eq(call("loaderStart", b(False), b(False)), ctor("Start.Cold"))),
+    theorem("warmup_notReadyKeyOnline", eq(call("warmup", b(False), b(True), b(True)), b(True))),
+    theorem("warmup_ready", eq(call("warmup", b(True), b(True), b(True)), b(False))),
+    theorem("warmup_noKey", eq(call("warmup", b(False), b(False), b(True)), b(False))),
+    theorem("warmup_offline", eq(call("warmup", b(False), b(True), b(False)), b(False))),
     theorem("decide_serve", eq(call("decide", b(True), b(False)), ctor("Decision.Serve"))),
     theorem("decide_execute", eq(call("decide", b(False), b(True)), ctor("Decision.Execute"))),
     theorem("decide_refuse", eq(call("decide", b(False), b(False)), ctor("Decision.Refuse"))),
