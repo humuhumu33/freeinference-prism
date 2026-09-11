@@ -66,6 +66,22 @@ const ladder = [
 ];
 for (const [op, input, key, want] of ladder) { const got = run({ op, ...input })[key]; if (got !== want) { console.error(`guest: ${op} ${JSON.stringify(input)} = ${got}, want ${want}`); process.exit(1); } }
 console.log(`guest: ${ladder.length} pack, ladder and loader rows identical through core.wasm`);
+// The OLMoE trace through the guest's pool-admit, per pool size, against the Python restatement.
+{
+  const trace = JSON.parse(readFileSync(new URL("../model/traces/olmoe-trace.json", import.meta.url), "utf8"));
+  const expected = JSON.parse(readFileSync(new URL("../model/traces/olmoe-expected.json", import.meta.url), "utf8"));
+  for (const p of expected.pools) {
+    const lru = new Map(); let hits = 0, misses = 0;
+    for (const k of trace) {
+      if (k === -1) continue;
+      const { admission } = run({ op: "pool-admit", present: lru.has(k), spaceLeft: lru.size < p.capacity });
+      if (admission === "Touch") { hits++; lru.delete(k); lru.set(k, true); }
+      else { misses++; if (admission === "EvictThenInsert") lru.delete(lru.keys().next().value); lru.set(k, true); }
+    }
+    if (hits !== p.hits || misses !== p.misses) { console.error(`guest: olmoe trace pool ${p.capacity}: ${hits}/${misses}, want ${p.hits}/${p.misses}`); process.exit(1); }
+  }
+  console.log(`guest: olmoe trace hit counts identical through pool-admit for ${expected.pools.length} pool sizes`);
+}
 const pool = [
   ["page-action", { resident: true, staging: "true-routing" }, "action", "Bind"], ["page-action", { resident: false, staging: "true-routing" }, "action", "Fetch"], ["page-action", { resident: false, staging: "staged-replace" }, "action", "Drop"],
   ["pool-admit", { present: true, spaceLeft: false }, "admission", "Touch"], ["pool-admit", { present: false, spaceLeft: true }, "admission", "Insert"], ["pool-admit", { present: false, spaceLeft: false }, "admission", "EvictThenInsert"],

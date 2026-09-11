@@ -103,6 +103,29 @@ wire_path = root / "model" / "wire.json"
 wire_path.write_text(json.dumps(wire, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {wire_path}: {len(wire)} wire vectors")
 
+# The recorded OLMoE routing trace (HOLOGRAM/tools/olmoe-lab, 2026-09-11): 282 tokens, 128 routed pages per
+# token, -1 marks a token. Replayed through an LRU pool whose admission is the model's poolAdmit table
+# (present -> touch, space -> insert, else evict the oldest then insert); the hit counts per pool size are
+# pinned here in Python and must be reproduced by the generated table through the crate and the guest.
+from collections import OrderedDict
+trace_path = root / "model" / "traces" / "olmoe-trace.json"
+if trace_path.exists():
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    def replay(capacity):
+        lru = OrderedDict(); hits = misses = 0
+        for k in trace:
+            if k == -1: continue
+            present = k in lru; space = len(lru) < capacity
+            if present: hits += 1; lru.move_to_end(k)            # Touch
+            else:
+                misses += 1
+                if not space: lru.popitem(last=False)             # EvictThenInsert
+                lru[k] = True                                     # Insert
+        return {"capacity": capacity, "hits": hits, "misses": misses}
+    expected = [replay(c) for c in (256, 512, 1024)]
+    (root / "model" / "traces" / "olmoe-expected.json").write_text(json.dumps({"pages": 1024, "perToken": 128, "tokens": trace.count(-1), "pools": expected}, indent=1) + "\n", encoding="utf-8")
+    print("olmoe trace: " + ", ".join(f"{e['capacity']} pages -> {e['hits']} hits / {e['misses']} misses" for e in expected))
+
 out = root / "model" / "corpus.json"
 out.write_text(json.dumps(cases, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {out}: {len(cases)} cases")

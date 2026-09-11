@@ -1,0 +1,22 @@
+{
+ "pages": 1024,
+ "perToken": 128,
+ "tokens": 282,
+ "pools": [
+  {
+   "capacity": 256,
+   "hits": 16867,
+   "misses": 19229
+  },
+  {
+   "capacity": 512,
+   "hits": 26207,
+   "misses": 9889
+  },
+  {
+   "capacity": 1024,
+   "hits": 35076,
+   "misses": 1020
+  }
+ ]
+}

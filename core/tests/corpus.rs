@@ -263,3 +263,27 @@ fn pack_ladder_and_loader_tables_hold_on_every_row() {
     assert_eq!(loaderStart(true, false), Start::Warm);
     assert_eq!(loaderStart(false, false), Start::Cold);
 }
+
+/// The recorded OLMoE routing trace through an LRU pool whose every admission is the generated
+/// `poolAdmit`: the hit counts per pool size equal the Python restatement.
+#[test]
+fn olmoe_trace_hit_counts_match_through_pool_admit() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../model/traces/");
+    let trace: Vec<i64> = serde_json::from_str(&std::fs::read_to_string(format!("{dir}olmoe-trace.json")).expect("trace")).unwrap();
+    let expected: Value = serde_json::from_str(&std::fs::read_to_string(format!("{dir}olmoe-expected.json")).expect("expected")).unwrap();
+    for pool in expected["pools"].as_array().unwrap() {
+        let capacity = pool["capacity"].as_u64().unwrap() as usize;
+        let mut lru: Vec<i64> = Vec::new(); let (mut hits, mut misses) = (0u64, 0u64);
+        for &k in &trace {
+            if k == -1 { continue; }
+            let present = lru.contains(&k);
+            match poolAdmit(present, lru.len() < capacity) {
+                Admission::Touch => { hits += 1; let i = lru.iter().position(|&x| x == k).unwrap(); lru.remove(i); lru.push(k); }
+                Admission::Insert => { misses += 1; lru.push(k); }
+                Admission::EvictThenInsert => { misses += 1; lru.remove(0); lru.push(k); }
+            }
+        }
+        assert_eq!((hits, misses), (pool["hits"].as_u64().unwrap(), pool["misses"].as_u64().unwrap()), "pool of {capacity} pages");
+    }
+    println!("olmoe trace: hit counts identical through poolAdmit for {} pool sizes", expected["pools"].as_array().unwrap().len());
+}

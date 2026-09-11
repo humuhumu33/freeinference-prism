@@ -108,6 +108,20 @@ The streaming expert pool's rules, as edge0 runs them, as closed decision tables
 
 Pack, Ladder and Loader followed the same way (attestation `9d0b3291…`, 161 declarations): `packRank` and `packed` (header, tokenizer, spine, experts in first use order; the n gram table never packed), `firstTokenReady` (the spine and the prompt's own pages, nothing more), `promote` (the small resident model answers until the large one is resident and measured fast; a promoted session never demotes), `loaderStart` (resume from a session snapshot, warm from a shell on the device, else cold). Fourteen theorems; 12 rows through the guest, every row through the crate. Finding 11: `section` is a Lean keyword too; the parameter is `part`.
 
+## Measured, the pool on a real mixture of experts, 2026-09-11
+
+OLMoE 1B 7B (the Q engine's 64 × 8 MoE, one κ block per expert matrix) ran in the local browser pane with every expert page admitted by the generated `poolAdmit`, on five real prompts, with the routing trace recorded (`model/traces/olmoe-trace.json`, 282 tokens, 128 routed pages per token). The full report is `HOLOGRAM/OLMOE-KAPPA-POOL-REPORT.md`; what belongs here:
+
+| Case | Result |
+| --- | --- |
+| Distinct experts per layer after 16, 64, 256 tokens | 47.2, 58.3, 63.6 of 64: routing is balanced, the working set is the whole model |
+| LRU pool of 256, 512, 768, 1,024 pages | hit rates 46.7%, 72.6%, 90.1%, 97.2%; history prefetch over 8 tokens changes none of them |
+| The trace through the generated `poolAdmit` | hit and miss counts at 256, 512 and 1,024 pages identical between the Python restatement, the crate and the guest (16,867/19,229; 26,207/9,889; 35,076/1,020) |
+| Warm pool, this integrated GPU | about 70 tokens in 6.1 to 7.0 s, byte identical repeat |
+| Cold fill from the hub | 4.0 GB in about 6.5 minutes over twelve streams; the first cold prompt 138.6 s |
+
+The consequence for the streaming design: the pool must hold the whole expert set for full speed; paging is a fill phase; the prerouter orders the fill and hides latency, it does not reduce bytes.
+
 A note on the lane: after a WSL restart the Windows mounted checkout refuses `lexlean verify`'s publish step with `EACCES` (DrvFs without metadata), while a WSL native copy verifies the same module. `scripts/lane-native.sh` mirrors the tree, runs the lane there and copies the artifacts back.
 
 ## Planted defect
