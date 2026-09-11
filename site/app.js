@@ -553,37 +553,23 @@ for (const b of document.querySelectorAll(".mode")) b.onclick = () => setMode(b.
 for (const b of document.querySelectorAll(".wall")) b.onclick = () => applyTheme({ palette: "dark", immersive: true, wallpaper: b.dataset.wall });
 
 // ---- the switch: two words, a model choice on the paid side, and a key field until a key is kept.
-// The thumb slides and resizes to the active segment: its geometry is the segment's own, so the two
-// labels of different widths both fit. Called on every change, on resize, and once fonts have settled.
-function paintWho() {
-  const track = $("who"); if (!track) return;
-  const active = track.querySelector('.seg[aria-checked="true"]'); const thumb = $("whoThumb");
-  if (!active || !thumb) return;
-  thumb.style.width = active.offsetWidth + "px";
-  thumb.style.transform = `translateX(${active.offsetLeft}px)`;
-}
+// One pill, one menu. The pill names who answers now; the menu is the whole list, your device or a
+// paid model, so choosing a model is choosing the provider. No second control.
+function openWhoMenu(open) { $("whoMenu").hidden = !open; $("whoPill").setAttribute("aria-expanded", String(open)); }
 async function applyWho(w) {
-  writeWho(w);
-  for (const b of document.querySelectorAll(".seg")) b.setAttribute("aria-checked", String(b.dataset.provider === w.provider));
-  paintWho();
-  const paid = w.provider === "paid";
-  $("paidModel").hidden = !paid; if (paid && w.model) $("paidModel").value = w.model;
-  $("keyrow").hidden = !paid || !!(await keyGet());
+  const provider = w.provider === "paid" ? "paid" : "local";
+  const model = provider === "paid" ? (w.model || VIEW.paidModels[0].id) : "";
+  writeWho({ provider, model });
+  $("whoCurrent").textContent = provider === "paid" ? (VIEW.paidModels.find((m) => m.id === model) || VIEW.paidModels[0]).label : VIEW.localLabel;
+  for (const o of document.querySelectorAll("#whoMenu .opt")) o.setAttribute("aria-selected", String(o.dataset.provider === provider && (provider !== "paid" || o.dataset.model === model)));
+  $("keyrow").hidden = !(provider === "paid") || !!(await keyGet());
   $("keyhint").textContent = (await keyGet()) ? VIEW.keySavedLabel : VIEW.paidOnceLabel;
   refreshConnect();
 }
-for (const b of document.querySelectorAll(".seg")) b.onclick = () => applyWho({ ...readWho(), provider: b.dataset.provider });
-// Arrow keys move the switch, as a radiogroup expects.
-$("who").addEventListener("keydown", (e) => {
-  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-  e.preventDefault();
-  const next = e.key === "ArrowRight" ? "paid" : "local";
-  applyWho({ ...readWho(), provider: next });
-  $("who").querySelector(`.seg[data-provider="${next}"]`).focus();
-});
-addEventListener("resize", paintWho);
-document.fonts.ready.then(() => { paintWho(); requestAnimationFrame(() => $("who").classList.add("ready")); });
-$("paidModel").onchange = () => applyWho({ ...readWho(), model: $("paidModel").value });
+$("whoPill").onclick = (e) => { e.stopPropagation(); openWhoMenu($("whoMenu").hidden); };
+for (const o of document.querySelectorAll("#whoMenu .opt")) o.onclick = () => { applyWho({ provider: o.dataset.provider, model: o.dataset.model || "" }); openWhoMenu(false); $("whoPill").focus(); };
+document.addEventListener("click", (e) => { if (!e.target.closest(".who")) openWhoMenu(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("whoMenu").hidden) { openWhoMenu(false); $("whoPill").focus(); } });
 $("key").addEventListener("change", async () => { const v = $("key").value.trim(); if (!v) return; await keySet(v); $("key").value = ""; applyWho(readWho()); });
 $("key").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("key").dispatchEvent(new Event("change")); } });
 

@@ -73,12 +73,8 @@ fn page() -> String {
     </div>
     <div class="row">
       <div class="who">
-        <div class="switch" id="who" role="radiogroup" aria-label="{local} / {paid}">
-          <span class="thumb" id="whoThumb" aria-hidden="true"></span>
-          <button class="seg" type="button" role="radio" data-provider="local" aria-checked="true">{local}</button>
-          <button class="seg" type="button" role="radio" data-provider="paid" aria-checked="false">{paid}</button>
-        </div>
-        <select class="pick" id="paidModel" aria-label="{paid}" hidden>{paid_models}</select>
+        <button class="who-pill" id="whoPill" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="{local} / {paid}"><span id="whoCurrent">{local}</span><svg class="chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="who-menu" id="whoMenu" role="listbox" aria-label="{local} / {paid}" hidden>{who_options}</div>
       </div>
       <button class="pill" id="connect" type="button" hidden aria-haspopup="dialog" aria-expanded="false"><span class="dot" id="pillDot"></span>{connect}</button>
       <span class="hint mono" id="hint"></span>
@@ -126,7 +122,15 @@ fn page() -> String {
         key_label = esc(&v.keyLabel),
         key_placeholder = esc(&v.keyPlaceholder),
         paid_once = esc(&v.paidOnceLabel),
-        paid_models = v.paidModels.iter().map(|m| format!(r#"<option value="{}">{}</option>"#, esc(&m.id), esc(&m.label))).collect::<Vec<_>>().join(""),
+        who_options = {
+            // The whole list of who can answer: your device first, then each paid model. Choosing a
+            // model is choosing the provider, so there is no second control.
+            let mut s = format!(r#"<button class="opt" type="button" role="option" data-provider="local" data-model="" aria-selected="true">{}</button>"#, esc(&v.localLabel));
+            for m in &v.paidModels {
+                s.push_str(&format!(r#"<button class="opt" type="button" role="option" data-provider="paid" data-model="{}" aria-selected="false">{}</button>"#, esc(&m.id), esc(&m.label)));
+            }
+            s
+        },
         connect = esc(&v.connectLabel),
         not_connected = esc(&v.notConnectedLabel),
         ask = esc(&v.askLabel),

@@ -157,19 +157,22 @@ button.badge:hover { color: var(--foreground); border-color: var(--brand); }
   .popover { top: 58px; right: 13px; }
 }
 
-/* Who answers: one switch, two words; the paid side shows a model choice and, once, a key field. */
-.who { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-width: 0; }
-/* One switch, two positions: a single track with a thumb that slides and resizes to the active
-   side (its width is set in app.js, so the wide and the short label both fit). Both words stay
-   legible; the moving thumb is the whole affordance. */
-.switch { position: relative; display: inline-flex; padding: 3px; border-radius: 999px; border: 1px solid var(--border); background: var(--user); }
-.switch .seg { position: relative; z-index: 1; font: inherit; font-size: 13px; padding: 5px 13px; border: 0; border-radius: 999px; background: transparent; color: var(--muted-foreground); cursor: pointer; white-space: nowrap; transition: color .25s ease; }
-.switch .seg[aria-checked="true"] { color: var(--foreground); }
-.switch .thumb { position: absolute; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 999px; background: color-mix(in srgb, var(--brand) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--brand) 45%, var(--border)); box-shadow: 0 1px 3px var(--shadow); }
-.switch.ready .thumb { transition: transform .28s cubic-bezier(.4, 0, .2, 1), width .28s cubic-bezier(.4, 0, .2, 1); }
-.pick { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); max-width: 60%; }
+/* Who answers: one pill that names the current choice and drops a menu of everyone who can answer,
+   your device or a paid model. The pill always says who will answer, so it is its own label. */
+.who { position: relative; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-width: 0; }
+.who-pill { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; font: inherit; font-size: 13px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--user); color: var(--foreground); cursor: pointer; white-space: nowrap; }
+.who-pill:hover, .who-pill[aria-expanded="true"] { border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); }
+.who-pill #whoCurrent { overflow: hidden; text-overflow: ellipsis; }
+.who-pill .chev { flex: none; opacity: 0.7; transition: transform .2s ease; }
+.who-pill[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.who-menu { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 4; min-width: 200px; max-width: min(280px, 80vw); padding: 5px; display: grid; gap: 2px; border-radius: 13px; border: 1px solid var(--glass-border); background: var(--glass); -webkit-backdrop-filter: blur(34px) saturate(1.4); backdrop-filter: blur(34px) saturate(1.4); box-shadow: 0 13px 34px var(--shadow); }
+.who-menu[hidden] { display: none; }
+.opt { display: flex; align-items: center; justify-content: space-between; gap: 13px; width: 100%; text-align: left; font: inherit; font-size: 13px; padding: 8px 11px; border: 0; border-radius: 8px; background: transparent; color: var(--foreground); cursor: pointer; white-space: nowrap; }
+.opt:hover { background: var(--user); }
+.opt[aria-selected="true"] { background: var(--user); font-weight: 500; }
+.opt[aria-selected="true"]::after { content: "\2713"; color: var(--brand); font-weight: 600; }
 .keyrow { display: flex; align-items: center; gap: 13px; margin-bottom: 8px; min-width: 0; }
-.keyrow[hidden], .pick[hidden] { display: none; }
+.keyrow[hidden] { display: none; }
 .key { font: inherit; font-size: 13px; flex: 1 1 auto; min-width: 0; padding: 8px 13px; border-radius: 10px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); }
 
 /* Connect: the pill in the box, and its sheet. The pill appears only when the model says the endpoint
