@@ -154,6 +154,17 @@ kv_dir = root / "model" / "kv"; kv_dir.mkdir(exist_ok=True)
 (kv_dir / "session.json").write_text(json.dumps({"root": ROOT, "every": every, "turns": turns}, indent=1) + "\n", encoding="utf-8")
 print(f"kv session: {len(turns)} turns, hits " + ",".join(str(t['hit']) for t in turns))
 
+# The router's conformance vector (model/vectors/qwen38-router-layer0.json): built by HOLOGRAM/tools/qwen38-lab/
+# router_vector.py from the real layer 0 gate weight of Qwen/Qwen3.8-Flash-Next by the reference rule of
+# Qwen3NextTopKRouter (fp32 softmax over 512 logits, top 10, renormalised). The weight is not in the tree; this
+# restates the rule's invariants over the vector, the kernel's conformance is the lab page's (router.html).
+rv = json.loads((root / "model" / "vectors" / "qwen38-router-layer0.json").read_text(encoding="utf-8"))
+assert len(rv["hidden"]) == 2560 and abs(sum(v * v for v in rv["hidden"]) / 2560 - 1.0) < 1e-4, "hidden state is RMS 1 over 2560"
+assert len(rv["indices"]) == 10 and len(set(rv["indices"])) == 10 and all(0 <= i < 512 for i in rv["indices"]), "ten distinct experts of 512"
+assert all(a >= b for a, b in zip(rv["weights"], rv["weights"][1:])) and abs(sum(rv["weights"]) - 1.0) < 1e-6, "weights descend and sum to one"
+assert all(a >= b for a, b in zip(rv["logits_top"], rv["logits_top"][1:])) and rv["prob_10th"] > rv["prob_11th"], "the tenth beats the eleventh"
+print(f"router vector: experts {rv['indices']}, top weight {rv['weights'][0]:.4f}, gap to the eleventh {(rv['prob_10th'] - rv['prob_11th']) / rv['prob_10th']:.3f}")
+
 out = root / "model" / "corpus.json"
 out.write_text(json.dumps(cases, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {out}: {len(cases)} cases")
