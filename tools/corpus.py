@@ -179,6 +179,19 @@ assert len(dv["conv_state"]) == 3 and all(len(c) == 10240 for c in dv["conv_stat
 assert len(dv["final_state_sha256"]) == 64 and dv["final_state_shape"] == [48, 128, 128], "the final state is named by its digest"
 print(f"deltanet vector: 6 tokens, decay {min(min(g) for g in dv['g']):.1f}..{max(max(g) for g in dv['g']):.1e}, final state {dv['final_state_sha256'][:12]}")
 
+# The sparse attention conformance vector (model/vectors/qwen38-qsa-layer3.json): the lab's qsa_vector.py on the
+# real layer 3 weights (the first full_attention layer), the QSA indexer and the gated GQA attention rule of
+# transformers' Qwen4ExpTextAttention over 2102 generated tokens (525 blocks of 4, budget 512 blocks, a 2 token
+# tail). The hidden states are regenerated from the vector's generator, not stored. Invariants here; the kernel's
+# conformance is the lab page's (qsa.html: the same 512 blocks, output within 1e-6).
+qv = json.loads((root / "model" / "vectors" / "qwen38-qsa-layer3.json").read_text(encoding="utf-8"))
+assert qv["tokens"] == 2102 and qv["blocks"] == 525 and qv["budget_blocks"] == 512, "2102 tokens, 525 blocks, a 512 block budget"
+sel, exc = qv["selected_blocks"], qv["excluded_blocks"]
+assert len(sel) == 512 and len(exc) == 13 and sorted(sel + exc) == list(range(525)), "the selection and its complement partition the blocks"
+assert qv["score_512th"] > qv["score_513th"] > 0 and qv["scores_top"][0] >= qv["score_512th"], "the budget's edge is ordered"
+assert len(qv["output"]) == 2560 and abs((sum(v * v for v in qv["output"]) / 2560) ** 0.5 - qv["output_rms"]) < 1e-6, "the output and its RMS agree"
+print(f"qsa vector: {qv['blocks']} blocks, excluded {exc}, edge gap {(qv['score_512th'] - qv['score_513th']) / qv['score_512th']:.3f}")
+
 out = root / "model" / "corpus.json"
 out.write_text(json.dumps(cases, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {out}: {len(cases)} cases")
