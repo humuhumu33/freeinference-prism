@@ -165,6 +165,20 @@ assert all(a >= b for a, b in zip(rv["weights"], rv["weights"][1:])) and abs(sum
 assert all(a >= b for a, b in zip(rv["logits_top"], rv["logits_top"][1:])) and rv["prob_10th"] > rv["prob_11th"], "the tenth beats the eleventh"
 print(f"router vector: experts {rv['indices']}, top weight {rv['weights'][0]:.4f}, gap to the eleventh {(rv['prob_10th'] - rv['prob_11th']) / rv['prob_10th']:.3f}")
 
+# The Gated DeltaNet conformance vector (model/vectors/qwen38-deltanet-layer0.json): built by the lab's
+# deltanet_vector.py from the real layer 0 weights by the reference rule (transformers Qwen3_5GatedDeltaNet,
+# recurrent form, fp32; Qwen4-Exp's sigmoid output gate); six tokens, the outputs, the per token decay and beta,
+# the conv state, and the SHA-256 of the 48 x 128 x 128 final state kept outside the tree. Invariants here, the
+# kernel's conformance is the lab page's (deltanet.html: relative error under 1e-6 per token and on the state).
+dv = json.loads((root / "model" / "vectors" / "qwen38-deltanet-layer0.json").read_text(encoding="utf-8"))
+assert dv["tokens"] == 6 and len(dv["hidden"]) == 6 and all(len(h) == 2560 and abs(sum(v * v for v in h) / 2560 - 1.0) < 1e-4 for h in dv["hidden"]), "six RMS 1 hidden states"
+assert len(dv["outputs"]) == 6 and all(len(o) == 2560 for o in dv["outputs"]), "six outputs of 2560"
+assert all(len(g) == 48 and all(v <= 0 for v in g) for g in dv["g"]), "decay log is non positive per value head"
+assert all(len(b) == 48 and all(0 < v < 1 for v in b) for b in dv["beta"]), "beta is a sigmoid"
+assert len(dv["conv_state"]) == 3 and all(len(c) == 10240 for c in dv["conv_state"]), "three pre conv rows of 10240"
+assert len(dv["final_state_sha256"]) == 64 and dv["final_state_shape"] == [48, 128, 128], "the final state is named by its digest"
+print(f"deltanet vector: 6 tokens, decay {min(min(g) for g in dv['g']):.1f}..{max(max(g) for g in dv['g']):.1e}, final state {dv['final_state_sha256'][:12]}")
+
 out = root / "model" / "corpus.json"
 out.write_text(json.dumps(cases, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {out}: {len(cases)} cases")
