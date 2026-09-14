@@ -192,6 +192,15 @@ assert qv["score_512th"] > qv["score_513th"] > 0 and qv["scores_top"][0] >= qv["
 assert len(qv["output"]) == 2560 and abs((sum(v * v for v in qv["output"]) / 2560) ** 0.5 - qv["output_rms"]) < 1e-6, "the output and its RMS agree"
 print(f"qsa vector: {qv['blocks']} blocks, excluded {exc}, edge gap {(qv['score_512th'] - qv['score_513th']) / qv['score_512th']:.3f}")
 
+# The hyper connection conformance vector (model/vectors/qwen38-hc-layer0.json): the lab's hc_vector.py on layer 0's
+# two gated residuals and the trunk mixer (Qwen4ExpTextGatedResidual: group rmsnorm0 over the 4 streams, a 320 wide
+# low rank mix, inject weights 2 sigmoid(/4)). Invariants here; the kernel's conformance is the lab page's (hc.html).
+hv = json.loads((root / "model" / "vectors" / "qwen38-hc-layer0.json").read_text(encoding="utf-8"))
+assert len(hv["hyper0"]) == 4 * 2560 and all(abs(sum(v * v for v in hv["hyper0"][g * 2560:(g + 1) * 2560]) / 2560 - 1.0) < 1e-4 for g in range(4)), "four RMS 1 streams"
+assert all(0 < v < 2 for v in hv["inj_attn"] + hv["inj_mlp"]) and len(hv["inj_attn"]) == 4 and len(hv["inj_mlp"]) == 4, "inject weights are 2 sigmoid"
+assert len(hv["mixed_attn"]) == len(hv["mixed_mlp"]) == len(hv["final"]) == 2560 and len(hv["hyper2_rms"]) == 4 and all(v > 1 for v in hv["hyper2_rms"]), "the streams grow by the injections"
+print(f"hc vector: inject attn {[round(v, 3) for v in hv['inj_attn']]}, mlp {[round(v, 3) for v in hv['inj_mlp']]}")
+
 out = root / "model" / "corpus.json"
 out.write_text(json.dumps(cases, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {out}: {len(cases)} cases")
