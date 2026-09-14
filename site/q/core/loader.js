@@ -64,6 +64,12 @@ export const MODELS = [
   // the verify window) + q1 batched GEMM + f32-KV window save — n-gram drafting ON, greedy batched
   // verify keeps output BYTE-IDENTICAL (bonsai8-spec.html gate). ?spec=0/1 A/B as everywhere.
   { fam: "Bonsai", name: "Bonsai-8B · 1-bit", spec: true, kappaUrl: "https://huggingface.co/HOLOGRAMTECH/q-bonsai-8b/resolve/main", holoUrl: "https://huggingface.co/HOLOGRAMTECH/q-bonsai-8b/resolve/main/q-bonsai-8b.v1.holo", manifestKappa: "did:holo:sha256:a0dc81f26ec5ce98b28ee9c1fab620e91c20720f777e1de6bc416317f54d27e2", size: "1.16 GB", fmt: "q1 1-bit κ", cap: 900, ctx: 3000, kv4: true, gpu: true, gpuOnly: true, chat: true, qwen: true, rep: 1.05, kappa: true },
+  // SEED TIER (2026-09-14): SmolLM2-360M-Instruct (Apache-2.0, Llama shaped, GQA 15/5, tied embeddings, ChatML)
+  // compiled by compile2bit q4 (a lossless relayout of bartowski's imatrix Q4_0; q and k rows un-permuted to HF
+  // order for the engine's half-split rope) and packed into ONE .holo in first-use order, 218 MB: eight times fewer
+  // bytes than BitNet, so the first local answer arrives in seconds on broadband and from OPFS on return. The page's
+  // ladder answers from it first and promotes to BitNet by the verified rule once BitNet is resident and measured.
+  { fam: "SmolLM2", name: "SmolLM2-360M · seed", seed: true, kappaUrl: "https://huggingface.co/HOLOGRAMTECH/q-smollm2-360m/resolve/main", holoUrl: "https://huggingface.co/HOLOGRAMTECH/q-smollm2-360m/resolve/main/q-smollm2-360m.v1.holo", manifestKappa: "did:holo:sha256:07aff22ceecacedb78c1e408be015cd08516ad819b32c9da50f84fb6c13a9c23", size: "0.21 GB", fmt: "q4 κ", cap: 400, ctx: 3000, kv4: true, gpu: true, gpuOnly: true, chat: true, qwen: true, eosText: "<|im_end|>", rep: 1.05, kappa: true },
   // Qwen κ-objects (q3f/q4) were pruned from disk for space — re-derive via compile2bit, then re-list.
 ];
 const kvOf = (m) => Math.max(96, (m.ctx || m.cap) + 8);
@@ -85,6 +91,11 @@ export const defaultModelIndex = () => {
 let _initOnce = null;
 export function ready() { if (!_initOnce) _initOnce = init().then(() => { try { qvac_panic_hook(); } catch {} }); return _initOnce; }
 export { qvac_tokenize, qvac_continue, kappa };
+// The wasm tokenizer is ONE global holding the last loaded model's vocabulary. Two resident engines (the ladder's seed
+// answering while a larger model loads behind it) would tokenize each other's text with the wrong vocabulary
+// (measured 2026-09-14). Every arming goes through here, so an engine can re-arm its own header before it tokenizes.
+let _armedHeader = null;
+export function armTokenizer(headerBytes) { if (!headerBytes || _armedHeader === headerBytes) return false; qvac_load_gpu(headerBytes); _armedHeader = headerBytes; return true; }
 
 // ── browser-cache model manager (Cache API) — "Get" downloads + keeps; loading uses the copy ──
 export const MCACHE = "holo-q-models";
@@ -138,7 +149,7 @@ export async function loadModel(m, { onStatus = noop, onProgress = noop } = {}) 
       } catch (e) { gpu = null; if (m.gpuOnly) { onStatus("GPU upload failed: " + e); return null; } }
     }
     onStatus("");
-    return { gpu, info: lr, manifest, imageKappa: null };
+    return { gpu, info: lr, manifest, imageKappa: null, headerBytes: typeof headerBytes !== "undefined" ? headerBytes : (typeof header !== "undefined" ? header : null) };
   } catch (e) { onStatus("could not load model: " + e); return null; }
 }
 
@@ -193,7 +204,7 @@ async function loadKappa(m, onStatus, onProgress) {
       if (_hdrKey) { try { _kvc.save(_hdrKey, headerBytes, { kind: "gguf-header", src: String(info.source || "") }); } catch {} }
     }
   }
-  const lr = JSON.parse(qvac_load_gpu(headerBytes));
+  armTokenizer(headerBytes); const lr = JSON.parse(qvac_load_gpu(headerBytes));
   if (lr.error) { onStatus("tokenizer error: " + lr.error); return null; }
   if (m.eosText) { try { const e = JSON.parse(qvac_tokenize(m.eosText)).ids; if (e && e.length === 1) lr.eos = e[0]; } catch {} }   // chat-stop override (e.g. LLaMA-3 <|eot_id|> ≠ header eos)
   qvac_gpu_free();
@@ -239,7 +250,7 @@ async function loadKappa(m, onStatus, onProgress) {
   try { if (_mk.holoStream) { const p = _mk.holoStream(); _mk.holoFirstTensorPct = p.marks.firstTensorPct; _mk.holoEnginePct = p.pct; } } catch {}
   window.__gpu = gpu;
   onStatus("");
-  return { gpu, info: lr, manifest, imageKappa: info.root || null, ld: modelLinkedData(m, info.root), ...(sealed ? { sealed } : {}) };
+  return { gpu, info: lr, manifest, imageKappa: info.root || null, ld: modelLinkedData(m, info.root), headerBytes, ...(sealed ? { sealed } : {}) };
 }
 
 // Very-large-model path: the GGUF never enters wasm; only the header does (tokenizer + manifest),
@@ -251,7 +262,7 @@ async function loadModelDisk(m, onStatus, onProgress) {
   try { const cachedResp = await (await caches.open(MCACHE)).match(m.url); if (cachedResp) { const blob = await cachedResp.blob(); read = async (_u, start, len) => new Uint8Array(await blob.slice(start, start + len).arrayBuffer()); } } catch {}
   onStatus(`Reading ${m.name} header…`);
   const hdr = await ing.readHeader(m.url, read);
-  const lr = JSON.parse(qvac_load_gpu(hdr.headerBytes));
+  const headerBytes = hdr.headerBytes; armTokenizer(headerBytes); const lr = JSON.parse(qvac_load_gpu(headerBytes));
   if (lr.error) { onStatus("model error: " + lr.error); return null; }
   const manifest = JSON.parse(qvac_gpu_manifest(bits));
   qvac_gpu_free();
@@ -260,7 +271,7 @@ async function loadModelDisk(m, onStatus, onProgress) {
   onStatus(`Preparing ${m.name} (one-time, streamed off disk)…`);
   const gpu = await createQvacGPU(manifest, fetchTensor, kvOf(m), lr.eos ?? 2, mode, (d, t) => onProgress(d, t, "layers"));
   window.__gpu = gpu; onStatus("");
-  return { gpu, info: lr, manifest, imageKappa: null };
+  return { gpu, info: lr, manifest, imageKappa: null, headerBytes: typeof headerBytes !== "undefined" ? headerBytes : (typeof header !== "undefined" ? header : null) };
 }
 
 // Out-of-core: stream a PRE-BUILT .qvf frames file from the server, one layer per token via HTTP Range.
@@ -280,7 +291,7 @@ async function loadModelRemote(m, onStatus, onProgress) {
   onStatus(`Preparing ${m.name} (served off disk)…`);
   const gpu = await createQvacGPU(manifest, fetchTensor, kvOf(m), lr.eos ?? 2, "remote", (d, t) => onProgress(d, t, "remote"), frameStore, cacheBudget);
   window.__gpu = gpu; onStatus("");
-  return { gpu, info: lr, manifest, imageKappa: null };
+  return { gpu, info: lr, manifest, imageKappa: null, headerBytes: typeof headerBytes !== "undefined" ? headerBytes : (typeof header !== "undefined" ? header : null) };
 }
 
 // HOLOGRAM: load through a content-addressed κ-DISK — every sector VERIFIED by re-derivation (Law L3/L5).

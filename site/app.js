@@ -107,6 +107,13 @@ async function seal(body, rec, key) {
 
 // ---- the engine: Hologram Q on WebGPU, resident across turns, warm KV as q-brain-fast does it
 let gpuEngine = null, gpuModel = null, gpuMods = null, gpuLoading = null, gpuSession = null;
+// The ladder: the seed (SmolLM2 360M, 218 MB) answers from the first seconds; BitNet 2B loads behind it and takes
+// over between turns by the verified `promote` rule, once resident and measured fast; monotone within a session.
+// Each tier keeps its own engine, session and memo key (the request's model names the tier that answered).
+const FAM = { Small: "SmolLM2", Large: "BitNet" };
+let tier = "Small", largeFast = false, largeLoading = null; const ladder = { Small: null, Large: null, largeEntry: null };
+const modelIdLocal = () => "webgpu:" + FAM[tier];
+window.__ladder = () => ({ tier, largeFast, largeResident: !!ladder.Large, largeTokps: ladder.largeTokps || 0 });   // read only, for the lab's eyes
 const sigOf = (list) => (list || []).map((m) => (m.role || "") + (m.content || "")).join("");
 const tailFor = (M, u) => M.llama3 ? `<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n${u || ""}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n` : null;
 function gpuReady() {
@@ -114,21 +121,50 @@ function gpuReady() {
   if (gpuLoading) return gpuLoading;
   gpuLoading = (async () => {
     const [L, E, F] = await Promise.all([import("./q/core/loader.js"), import("./q/core/engine.js"), import("./q/core/q-brain-fast.mjs")]);
-    gpuMods = { L, E, F }; gpuModel = L.MODELS.find((m) => m.fam === "BitNet");
-    setState(VIEW.loadingLabel); await L.ready();
-    const t0 = performance.now();
-    const loaded = await L.loadModel(gpuModel, {
-      // The engine's own status strings are for engineers; the page says one plain thing and a number.
-      onStatus: () => setState(VIEW.loadingLabel),
-      onProgress: (d, t) => { gpuPct = t ? Math.round((d / t) * 100) : null; setState(t ? `${VIEW.loadingLabel} · ${gpuPct}%` : VIEW.loadingLabel); if (gpuPct % 5 === 0) refreshWho(); },
-    });
-    if (!loaded || !loaded.gpu) throw new Error("model load failed");
-    gpuEngine = await E.createEngine(gpuModel, loaded);
-    setState(""); refreshWho();
-    refreshConnect();
+    gpuMods = { L, E, F }; await L.ready();
+    setState(VIEW.loadingLabel);
+    const seed = L.MODELS.find((m) => m.fam === FAM.Small); let small = null;
+    if (seed) { try { small = await loadTier(seed, false); } catch (err) { console.warn("seed unavailable, loading the larger model first:", err && err.message || err); } }
+    if (small) { ladder.Small = small.engine; gpuEngine = small.engine; gpuModel = small.entry; }
+    else { const large = await loadTier(L.MODELS.find((m) => m.fam === FAM.Large), false); ladder.Large = large.engine; ladder.largeEntry = large.entry; largeFast = true; tier = "Large"; gpuEngine = large.engine; gpuModel = large.entry; }
+    setState(""); refreshWho(); refreshConnect();
+    if (small) loadLarge();
     return gpuEngine;
   })().catch((err) => { gpuLoading = null; throw err; });
   return gpuLoading;
+}
+async function loadTier(entry, background) {
+  const { L, E } = gpuMods;
+  // On this machine's dev server the seed also lives on the origin (site/seed, never in git); the reader races it
+  // with the release and fails over per block, so a missing local copy costs nothing.
+  const m = (entry.seed && location.hostname === "localhost") ? { ...entry, holoMirrors: ["seed/q-smollm2-360m.v1.holo"] } : entry;
+  const loaded = await L.loadModel(m, {
+    // The engine's own status strings are for engineers; the page says one plain thing and a number.
+    onStatus: () => { if (!background) setState(VIEW.loadingLabel); },
+    onProgress: (d, t) => { gpuPct = t ? Math.round((d / t) * 100) : null; if (!background) setState(t ? `${VIEW.loadingLabel} · ${gpuPct}%` : VIEW.loadingLabel); if (gpuPct % 5 === 0) refreshWho(); },
+  });
+  if (!loaded || !loaded.gpu) throw new Error("model load failed");
+  return { entry: m, engine: await E.createEngine(m, loaded) };
+}
+function loadLarge() {
+  if (largeLoading || ladder.Large) return largeLoading;
+  largeLoading = (async () => {
+    const entry = gpuMods.L.MODELS.find((m) => m.fam === FAM.Large);
+    const { engine } = await loadTier(entry, true);
+    // Measured, never assumed: two short runs (the first primes the pipelines) decide whether the larger model is
+    // fast enough to take over, at 8 tokens per second.
+    let tokps = 0; const ids = engine.tokenize("Hello");
+    for (let k = 0; k < 2; k++) await withEngine(() => engine.generate(ids, { maxNew: 8, onToken: ({ stats }) => { if (stats && stats.tokps) tokps = Math.max(tokps, stats.tokps); } }));
+    ladder.Large = engine; ladder.largeEntry = entry; largeFast = tokps >= 8; ladder.largeTokps = tokps; gpuPct = null; refreshWho();
+  })().catch((err) => { console.warn("the larger model did not load:", err && err.message || err); largeLoading = null; });
+  return largeLoading;
+}
+// Between turns: the verified rule says which tier answers; a promotion swaps the engine and starts a new session.
+async function tierNow() {
+  if (!gpuEngine) return false;
+  const next = (await coreReady()).run({ op: "promote", current: tier.toLowerCase(), largeResident: !!ladder.Large, largeFast }).tier;
+  if (next === tier) return false;
+  tier = next; gpuEngine = ladder.Large; gpuModel = ladder.largeEntry; gpuSession = null; refreshWho(); return true;
 }
 function gpuIds(engine, messages) {
   const last = messages[messages.length - 1];
@@ -239,13 +275,15 @@ async function routeOf(hit, body) {
 const refusal = { NoKey: () => VIEW.noKeyLabel, NoGpu: () => VIEW.noGpuLabel, PaidOffline: () => VIEW.paidOfflineLabel };
 async function turn(messages, body, el) {
   const t0 = performance.now();
+  const promoted = body.model.startsWith("webgpu:") ? await tierNow() : false;
+  if (body.model.startsWith("webgpu:")) body.model = modelIdLocal();
   const hit = await lookup(body);
   const route = await routeOf(hit, body);
   if (route === "Serve") {
     el.textContent = hit.text;
     chips(el, hit.paid
       ? [{ text: VIEW.paidModels.find((m) => m.id === hit.rec.model)?.label || hit.rec.model, title: hit.fingerprint }, { text: VIEW.servedLabel, title: hit.receipt, ok: true }, { text: VIEW.freeLabel, title: VIEW.paidOnceLabel }]
-      : [{ text: VIEW.modelLabel, title: hit.fingerprint }, { text: VIEW.servedLabel, title: hit.receipt, ok: true }, rederiveChip(hit.rec)]);
+      : [{ text: body.model === "webgpu:" + FAM.Small ? VIEW.seedModelLabel : VIEW.modelLabel, title: hit.fingerprint }, { text: VIEW.servedLabel, title: hit.receipt, ok: true }, rederiveChip(hit.rec)]);
     $("hint").textContent = `${Math.round(performance.now() - t0)} ms · ${VIEW.servedLabel}`;
     return hit.text;
   }
@@ -277,12 +315,13 @@ async function turn(messages, body, el) {
   const live = (s) => `${warm ? "warm" : "cold"} · first token ${Math.round(s.ttft || 0)} ms · ${(s.tokps || 0).toFixed(1)} tok/s`;
   const res = await withEngine(() => engine.generate(ids, { maxNew: body.max_tokens, onToken: ({ text, stats }) => { el.textContent = text; if (stats) $("hint").textContent = live(stats); } }));
   const text = (res.text || "").trim(); el.textContent = text;
+  if (!text) throw new Error(VIEW.emptyAnswerLabel);   // never seal, memo or repeat an empty answer
   if (res.ids && text && !res.error) gpuSession = { ids: res.ids.slice(), sig: sigOf(messages.concat([{ role: "assistant", content: text }])) };
   const promptText = (messages.filter((m) => m.role === "user").slice(-1)[0] || {}).content || "";
   const rec = await engine.buildReceipt({ promptText, ctxIds: [], turnIds: ids, outIds: res.outIds });
   const receipt = await seal(body, rec, hit.key);
   const used = rec.body["prov:used"] || {};
-  chips(el, [{ text: VIEW.modelLabel, title: used["holo:model"] }, { text: VIEW.sealedLabel, title: receipt, ok: true }, rederiveChip(rec)]);
+  chips(el, [{ text: tier === "Large" ? VIEW.modelLabel : VIEW.seedModelLabel, title: used["holo:model"] }, { text: VIEW.sealedLabel, title: receipt, ok: true }, rederiveChip(rec)].concat(promoted ? [{ text: VIEW.promotedLabel, title: FAM.Large, ok: true }] : []));
   $("hint").textContent = `${Math.round(performance.now() - started)} ms · ${live(res.stats || {})}`;
   return text;
 }
@@ -294,7 +333,7 @@ $("composer").onsubmit = async (e) => {
   add("user", text); history.push({ role: "user", content: text });
   const messages = history.slice();
   const who = readWho();
-  const body = { model: who.provider === "paid" ? "openrouter/" + (who.model || VIEW.paidModels[0].id) : "webgpu:BitNet", messages, max_tokens: 512, temperature: "0.7" };
+  const body = { model: who.provider === "paid" ? "openrouter/" + (who.model || VIEW.paidModels[0].id) : modelIdLocal(), messages, max_tokens: 512, temperature: "0.7" };
   const el = add("assistant", "");
   try { const content = await turn(messages, body, el); history.push({ role: "assistant", content }); }
   catch (err) { el.textContent = `Error: ${err.message}`; }
@@ -305,10 +344,9 @@ $("composer").onsubmit = async (e) => {
 // it returns is encoded by the verified core (encode-role, encode-delta, encode-final,
 // encode-completion, encode-error, encode-models, done). Two transports carry it and compute
 // nothing: the service worker on this origin, and the one file relay for native harnesses.
-const MODEL_ID = "webgpu:BitNet";
 const wire = (op, extra) => core.run({ op, ...extra }).bytes;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-function completionOf(id, text, fingerprint, receipt, model = MODEL_ID) {
+function completionOf(id, text, fingerprint, receipt, model = modelIdLocal()) {
   return { id, created: String(Math.floor(Date.now() / 1000)), model, text, fingerprint, receipt };
 }
 // The request as the model's Request: text only, max_tokens as OpenClaw and Hermes spell it,
@@ -317,7 +355,7 @@ function requestOf(raw) {
   const messages = raw.messages.map((m) => ({ role: m.role || "user", content: Array.isArray(m.content) ? m.content.map((p) => (p && p.text) || "").join("\n") : String(m.content ?? "") }));
   const maxTokens = raw.max_completion_tokens ?? raw.max_tokens;
   const who = readWho();
-  const model = typeof raw.model === "string" && raw.model.startsWith("openrouter/") ? raw.model : who.provider === "paid" ? "openrouter/" + (who.model || VIEW.paidModels[0].id) : MODEL_ID;
+  const model = typeof raw.model === "string" && raw.model.startsWith("openrouter/") ? raw.model : who.provider === "paid" ? "openrouter/" + (who.model || VIEW.paidModels[0].id) : modelIdLocal();
   return { model, messages, max_tokens: Number.isInteger(maxTokens) && maxTokens > 0 ? Math.min(maxTokens, 2048) : 512, temperature: raw.temperature == null ? "" : String(raw.temperature), seed: raw.seed };
 }
 // Answers one request. With a sink ({head, frame}) the answer streams as chunk frames; without,
@@ -376,7 +414,7 @@ async function serve(raw, sink) {
   sink.frame(wire("encode-final", { completion: done })); sink.frame(wire("done"));
   return { status: 200, headers };
 }
-const modelsBytes = () => wire("encode-models", { ids: [MODEL_ID].concat(VIEW.paidModels.map((m) => "openrouter/" + m.id)) });
+const modelsBytes = () => wire("encode-models", { ids: ["webgpu:" + FAM.Small, "webgpu:" + FAM.Large].concat(VIEW.paidModels.map((m) => "openrouter/" + m.id)) });
 
 // Transport 1: the service worker hands each /v1 request on this origin to this page over a
 // MessageChannel: {head:{status,headers}} once, then {frame} per wire frame, then {done}.
@@ -467,7 +505,7 @@ const sheetOpen = () => !$("sheet").hidden;
 let os = /Windows/i.test(navigator.userAgent) ? "win" : "mac", snip = "python", relayHash = "";
 const RELAY_FILE = new URL("freeinference-relay.py", location.href).href;
 const baseUrl = () => `${RELAY}/v1`;
-const modelId = () => { const w = readWho(); return w.provider === "paid" ? "openrouter/" + (w.model || VIEW.paidModels[0].id) : MODEL_ID; };
+const modelId = () => { const w = readWho(); return w.provider === "paid" ? "openrouter/" + (w.model || VIEW.paidModels[0].id) : modelIdLocal(); };
 const portEnv = { mac: RELAY_PORT === 11435 ? "" : `FREEINFERENCE_RELAY_PORT=${RELAY_PORT} `, win: RELAY_PORT === 11435 ? "" : `$env:FREEINFERENCE_RELAY_PORT=${RELAY_PORT}; ` };
 const COMMANDS = {
   mac: { run: () => `curl -fsSLO ${RELAY_FILE} && ${portEnv.mac}python3 freeinference-relay.py`, verify: () => "shasum -a 256 freeinference-relay.py" },
@@ -584,9 +622,9 @@ async function refreshWho() {
   const keyed = !!(await keyGet());
   let name, state, title;
   if (paid) { name = paidLabel; state = keyed ? "ready" : "off"; title = keyed ? paidLabel : VIEW.noKeyLabel; }
-  else if (gpuEngine) { name = VIEW.localModelName; state = "ready"; title = VIEW.modelLabel; }
+  else if (gpuEngine) { name = tier === "Large" ? VIEW.localModelName : VIEW.seedModelName; state = "ready"; title = tier === "Large" ? VIEW.modelLabel : (ladder.Large ? VIEW.seedModelLabel : `${VIEW.largerLoadingLabel}${gpuPct != null ? ` · ${gpuPct}%` : ""}`); }
   else if (keyed && navigator.onLine) { name = VIEW.paidModels[0].label; state = "loading"; title = `${VIEW.warmupLabel}${gpuPct != null ? ` · ${gpuPct}%` : ""}`; }
-  else { name = VIEW.localModelName; state = "loading"; title = `${VIEW.loadingWord}${gpuPct != null ? ` · ${gpuPct}%` : ""}`; }
+  else { name = VIEW.seedModelName; state = "loading"; title = `${VIEW.loadingWord}${gpuPct != null ? ` · ${gpuPct}%` : ""}`; }
   $("whoCurrent").textContent = name; $("whoDot").dataset.state = state; $("whoPill").title = title;
 }
 async function applyWho(w) {
