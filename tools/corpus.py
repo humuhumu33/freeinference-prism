@@ -201,6 +201,38 @@ assert all(0 < v < 2 for v in hv["inj_attn"] + hv["inj_mlp"]) and len(hv["inj_at
 assert len(hv["mixed_attn"]) == len(hv["mixed_mlp"]) == len(hv["final"]) == 2560 and len(hv["hyper2_rms"]) == 4 and all(v > 1 for v in hv["hyper2_rms"]), "the streams grow by the injections"
 print(f"hc vector: inject attn {[round(v, 3) for v in hv['inj_attn']]}, mlp {[round(v, 3) for v in hv['inj_mlp']]}")
 
+# The n-gram page conformance vector (model/vectors/qwen38-ngram-layer1.json): the lab's ngram_vector.py on layer 1's
+# PLE tensors and the 102 GB hashed n-gram table read by HTTP Range, 320 bytes per row (Qwen4ExpTextNGramEmbedding:
+# splitmix64 multipliers from seed 1234, xor of shifted token ids, remainder by the head's prime, 16 heads of 160).
+# The addresses are published (shard, row, byte offset, SHA-256 of the row); the rows are not in the tree. The hash
+# rule is restated here and must reproduce every row id; the layer's conformance is the lab page's (ngram.html).
+nv = json.loads((root / "model" / "vectors" / "qwen38-ngram-layer1.json").read_text(encoding="utf-8")); hh = nv["hash"]
+M64 = (1 << 64) - 1; GAMMA = 0x9E3779B97F4A7C15
+def splitmix64(v):
+    v = (v + GAMMA) & M64; v = ((v ^ (v >> 30)) * 0xBF58476D1CE4E5B9) & M64; v = ((v ^ (v >> 27)) * 0x94D049BB133111EB) & M64; return (v ^ (v >> 31)) & M64
+half = ((1 << 63) - 1) // 248320 // 2
+assert hh["multipliers"] == [2 * (splitmix64((hh["seed"] + GAMMA * (k + 1)) & M64) % half) + 1 for k in range(3)], "the multipliers follow from the seed"
+assert all(q > 1 and all(q % d for d in range(2, int(q ** 0.5) + 1)) for q in hh["primes"]) and hh["primes"] == sorted(hh["primes"]) and hh["primes"][0] > 20_000_000, "16 primes past the base"
+assert hh["offsets"] == [sum(hh["primes"][:k]) for k in range(16)], "offsets are cumulative"
+eos = hh["eos"]; hist = [eos, eos] + nv["tokens"]
+def shifted(shift):
+    o = []; seg = 0
+    for k, tok in enumerate(hist):
+        if k > 0 and hist[k - 1] == eos: seg = k
+        src = k - shift; o.append(hist[src] if (k - seg >= shift and src >= 0) else eos)
+    return o
+sh = [shifted(k) for k in range(3)]; to_i64 = lambda v: v - (1 << 64) if v & (1 << 63) else v
+for t, per in enumerate(nv["row_ids"]):
+    k = t + 2; want = []
+    for ng in (2, 3):
+        mixed = (sh[0][k] * hh["multipliers"][0]) & M64
+        for q in range(1, ng): mixed ^= (sh[q][k] * hh["multipliers"][q]) & M64
+        m = to_i64(mixed); want += [hh["offsets"][h] + m % hh["primes"][h] for h in range((ng - 2) * 8, (ng - 1) * 8)]
+    assert per == want, f"row ids of token {t} follow from the hash rule"
+    assert all(str(r) in nv["pages"] and len(nv["pages"][str(r)]["sha256"]) == 64 and nv["pages"][str(r)]["row"] == r % hh["shard_rows"] for r in per), "every row has a page address"
+assert len(nv["output_last"]) == 4 * 2560 and len(nv["gates"]) == len(nv["tokens"]), "the layer's output shape"
+print(f"ngram vector: {len(nv['tokens'])} tokens, {len(nv['pages'])} pages of 320 bytes from the 102 GB table, primes {hh['primes'][0]}..{hh['primes'][-1]}")
+
 out = root / "model" / "corpus.json"
 out.write_text(json.dumps(cases, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {out}: {len(cases)} cases")
