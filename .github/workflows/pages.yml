@@ -40,7 +40,7 @@ jobs:
         env:
           KEY: ${{ secrets.OPENROUTER_WARMUP_KEY }}
         run: python3 -c "import json,os;json.dump({'key':os.environ['KEY'],'model':'qwen/qwen3.8-flash'},open('site/warmup.json','w'))"
-      # The product moved to dyad-prism (see README): the lane and the corpus still run on every push,
+      # The product moved to hologram-forge (see README): the lane and the corpus still run on every push,
       # but what Pages serves is the redirect, with a worker that retires the old shell's caches.
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
